@@ -1,2 +1,7 @@
 .*.swp
 /build/
+
+# KiCAD
+hardware/picoprom-backups
+fp-info-cache
+*.bak
