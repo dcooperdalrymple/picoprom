@@ -2,6 +2,7 @@
 /build/
 
 # KiCAD
-hardware/picoprom-backups
+/hardware/picoprom-backups
 fp-info-cache
 *.bak
+/hardware/plots/
