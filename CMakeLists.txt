@@ -22,3 +22,7 @@ target_link_libraries(picoprom pico_stdlib)
 pico_enable_stdio_usb(picoprom 1)
 pico_enable_stdio_uart(picoprom 0)
 
+option(VERIFY_ROM "Support rom verification with octal bus transceiver" OFF)
+if(VERIFY_ROM)
+	target_compile_definitions(picoprom PUBLIC VERIFY_ROM=1)
+endif()

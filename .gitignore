@@ -6,3 +6,7 @@
 fp-info-cache
 *.bak
 /hardware/plots/
+*.lck
+
+# Visual Studio Code
+.vscode

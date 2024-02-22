@@ -103,8 +103,20 @@ void loop()
 
 	printf("Writing to EEPROM...\n");
 	eeprom_writeImage(buffer, sizeReceived);
-
 	printf("\n");
+
+	#if VERIFY_ROM
+	printf("Verifying EEPROM contents...\n");
+	size_t error = eeprom_verifyImage(buffer, sizeReceived);
+	printf("\n");
+	if (error > 0) {
+		printf("ROM verification failed: %d incorrect bytes\n", error);
+	} else {
+		printf("ROM verification succeeded\n");
+	}
+	printf("\n");
+	#endif
+
 	printf("Done\n");
 }
 
@@ -119,4 +131,3 @@ int main()
 	
 	return 0;
 }
-
