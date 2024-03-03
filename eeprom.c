@@ -199,6 +199,25 @@ size_t eeprom_verifyImage(const uint8_t* buffer, size_t size) {
 	return error;
 }
 
+size_t eeprom_readImage(uint8_t* buffer, size_t size) {
+	if (size > gConfig.size) size = gConfig.size;
+
+	size_t error = 0;
+	for (int address = 0; address < size; ++address)
+	{
+		buffer[address] = readByte(address);
+
+		gpio_put(gLedPin, (address & 0x100) != 0);
+
+		if (((address + 1) & 0x7ff) == 0)
+		{
+			printf(" %dK", (address + 1) >> 10);
+		}
+	}
+
+	return size;
+}
+
 #endif
 
 bool eeprom_init()
