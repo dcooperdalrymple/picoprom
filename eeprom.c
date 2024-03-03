@@ -165,7 +165,7 @@ static uint8_t readByte(uint16_t address) {
 	// Read data bus
 	dataBits = gpio_get_all() & gDataBits;
 	for (int i = 0; i < 8; i++) {
-		if (bits & ((uint32_t)1 << gDataPins[i])) {
+		if (dataBits & ((uint32_t)1 << gDataPins[i])) {
 			data |= (1 << i);
 		}
 	}
