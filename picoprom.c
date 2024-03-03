@@ -182,7 +182,8 @@ void loop()
 
 	#if VERIFY_ROM
 	printf("Verifying EEPROM contents...\n");
-	size_t error = eeprom_verifyImage(buffer, sizeReceived);
+	sleep_ms(gConfig.pageDelayMs);
+	size_t error = eeprom_verifyImage(buffer, sizeReceived, 0);
 	printf("\n");
 	if (error > 0) {
 		printf("ROM verification failed: %d incorrect bytes out of %d\n", error, sizeReceived);
