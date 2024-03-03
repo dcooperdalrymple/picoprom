@@ -119,13 +119,6 @@ static void change_log_level()
 }
 
 
-typedef struct
-{
-	char key;
-	const char* commandName;
-	void (*action)();
-} command_t;
-
 static command_t gCommands[] =
 {
 	{ 'd', "change device", change_device },
@@ -170,4 +163,3 @@ void change_settings()
 		}
 	}
 }
-

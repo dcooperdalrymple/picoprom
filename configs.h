@@ -22,10 +22,17 @@ typedef struct
 extern picoprom_config_t gConfig;
 
 
+typedef struct
+{
+	char key;
+	const char* commandName;
+	void (*action)();
+} command_t;
+
+
 void init_settings();
 void show_settings();
 void change_settings();
 
 
 #endif
-
