@@ -110,7 +110,7 @@ void loop()
 	size_t error = eeprom_verifyImage(buffer, sizeReceived);
 	printf("\n");
 	if (error > 0) {
-		printf("ROM verification failed: %d incorrect bytes\n", error);
+		printf("ROM verification failed: %d incorrect bytes out of %d\n", error, sizeReceived);
 	} else {
 		printf("ROM verification succeeded\n");
 	}
