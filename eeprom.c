@@ -199,13 +199,20 @@ size_t eeprom_verifyImage(const uint8_t* buffer, size_t size) {
 	return error;
 }
 
-size_t eeprom_readImage(uint8_t* buffer, size_t size) {
-	if (size > gConfig.size) size = gConfig.size;
+size_t eeprom_readImage(uint8_t* buffer, size_t size, size_t offset) {
+	if (size > gConfig.size)
+	{
+		size = gConfig.size;
+	}
+	if (offset + size > gConfig.size)
+	{
+		offset = gConfig.size - size;
+	}
 
 	size_t error = 0;
-	for (int address = 0; address < size; ++address)
+	for (int address = offset; address < offset + size; ++address)
 	{
-		buffer[address] = readByte(address);
+		buffer[address-offset] = readByte(address);
 
 		gpio_put(gLedPin, (address & 0x100) != 0);
 
