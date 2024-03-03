@@ -63,10 +63,15 @@ void xmodem_set_config(xmodem_mode_t mode);
  */
 int xmodem_receive(void* outputBuffer, size_t bufferSize, const char *message, bool (*inputhandler)());
 
+/* Send a file via XMODEM in packages of 128.
+ *
+ * Returns whether or not the operation was successful.
+ */
+bool xmodem_send(char* inputBuffer, size_t bufferSize);
+
 
 /* Dumps cached log data to stdout. */
 void xmodem_dumplog();
 
 
 #endif
-

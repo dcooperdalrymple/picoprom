@@ -20,6 +20,7 @@ const int XMODEM_ACK = 6;
 const int XMODEM_DLE = 0x10;
 const int XMODEM_NAK = 0x15;
 const int XMODEM_CAN = 0x18;
+const int XMODEM_SUB = 0x1a;
 
 const int XMODEM_BLOCKSIZE = 128;
 
@@ -133,7 +134,7 @@ int xmodem_receive(void* outputBuffer, size_t bufferSize, const char* message, b
 			}
 			else if (inputhandler && inputhandler(c))
 			{
-				return -1;
+				return 0;
 			}
 			else if (xmodem_config.logLevel >= 1)
 			{
@@ -266,3 +267,160 @@ int xmodem_receive(void* outputBuffer, size_t bufferSize, const char* message, b
 	return sizeReceived;
 }
 
+bool xmodem_send(char* inputBuffer, size_t bufferSize)
+{
+	char logBuffer[1024];
+	xmodem_clearlog();
+	
+	bool result = false;
+	int c = 0;
+	int block = 1;
+	size_t bufpos = 0;
+	int checksum = 0;
+	int tries = 1;
+	bool useCrc = xmodem_config.useCrc;
+
+	// Wait for receive to be ready (30 seconds)
+	do
+	{
+		c = getchar_timeout_us(1000); // 1ms
+		if (c != PICO_ERROR_TIMEOUT)
+		{
+			if (c == 'C') {
+				useCrc = true;
+				result = true;
+				if (xmodem_config.logLevel >= 1) xmodem_log("CRC enabled");
+				break;
+			}
+			else if (c == XMODEM_NAK)
+			{
+				useCrc = false;
+				result = true;
+				if (xmodem_config.logLevel >= 1) xmodem_log("CRC disabled");
+				break;
+			}
+			else if (xmodem_config.logLevel >= 1)
+			{
+				sprintf(logBuffer, "Unexected character %d received - expected %d or %d", c, 'C', XMODEM_NAK);
+				xmodem_log(logBuffer);
+			}
+		}
+	}
+	while (tries++ < 30000);
+	if (tries >= 30000 && xmodem_config.logLevel >= 1) xmodem_log("Timeout");
+
+	while (!!result && bufpos < bufferSize)
+	{
+		if (xmodem_config.logLevel >= 2) {
+			sprintf(logBuffer, "Sending block %d - %d", block, (size_t)block*XMODEM_BLOCKSIZE);
+			xmodem_log(logBuffer);
+		}
+
+		xmodem_dumplog();
+
+		// Block header
+		putchar(XMODEM_SOH);
+		putchar((char)block);
+		putchar(255-(char)block);
+
+		checksum = 0;
+		for (bufpos = (size_t)block*XMODEM_BLOCKSIZE; bufpos < (size_t)(block+1)*XMODEM_BLOCKSIZE; bufpos++)
+		{
+			c = bufpos < bufferSize ? inputBuffer[bufpos] : XMODEM_SUB;
+			putchar(c);
+
+			if (useCrc)
+			{
+				checksum = checksum ^ c << 8;
+				for (int i = 0; i < 8; ++i)
+					if (checksum & 0x8000)
+						checksum = checksum << 1 ^ 0x1021;
+					else
+						checksum = checksum << 1;
+			}
+			else
+			{
+				checksum += (char)c;
+			}
+		}
+		if (useCrc)
+		{
+			putchar((char)(checksum>>8));
+			putchar((char)checksum);
+		}
+		else
+		{
+			putchar((char)checksum);
+		}
+		if (xmodem_config.logLevel >= 2) {
+			sprintf(logBuffer, "Checksum for block %d - %d", block, (useCrc ? checksum & 0xffff : checksum & 0xff));
+			xmodem_log(logBuffer);
+		}
+
+		c = getchar_timeout_us(1000);
+		if (c == XMODEM_ACK)
+		{
+			block++;
+			tries = 0;
+		}
+		else if (c == XMODEM_CAN && getchar_timeout_us(1000) == XMODEM_CAN)
+		{
+			result = false;
+			break;
+		}
+		else if (c != XMODEM_NAK && xmodem_config.logLevel >= 2)
+		{
+			sprintf(logBuffer, "Unknown response %d, retrying block %d", c, block);
+			xmodem_log(logBuffer);
+		}
+		else if (xmodem_config.logLevel >= 2)
+		{
+			sprintf(logBuffer, "Retrying block %d", block);
+			xmodem_log(logBuffer);
+		}
+		tries++;
+		if (tries > 10)
+		{
+			result = false;
+			if (xmodem_config.logLevel >= 1)
+			{
+				sprintf(logBuffer, "Failed to deliver block %d", block);
+				xmodem_log(logBuffer);
+			}
+			break;
+		}
+	}
+
+	if (result)
+	{
+		// Indicate the end of file
+		tries = 0;
+		do
+		{
+			putchar(XMODEM_EOT);
+			c = getchar_timeout_us(1000);
+			if (c == XMODEM_ACK) break;
+			else if (c == XMODEM_NAK) continue;
+			else if (c == XMODEM_CAN && getchar_timeout_us(1000) == XMODEM_CAN) result = false;
+		} while (result && tries++ < 10);
+		if (tries >= 10)
+		{
+			result = false;
+			if (xmodem_config.logLevel >= 1) xmodem_log("Timeout");
+		}
+	}
+	else
+	{
+		// Send cancels to terminate the transaction
+		for (int i = 0; i < 8; ++i)
+			putchar(XMODEM_CAN);
+		while (getchar_timeout_us(1000) != PICO_ERROR_TIMEOUT);
+		if (xmodem_config.logLevel >= 1) xmodem_log("Transmission cancelled");
+	}
+
+	puts("");
+	xmodem_dumplog();
+	xmodem_clearlog();
+
+	return result;
+}
