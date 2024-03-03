@@ -181,13 +181,14 @@ static uint8_t readByte(uint16_t address) {
 	return data;
 }
 
-size_t eeprom_verifyImage(const uint8_t* buffer, size_t size) {
+size_t eeprom_verifyImage(const uint8_t* buffer, size_t size, size_t offset) {
 	if (size > gConfig.size) size = gConfig.size;
+	if (offset + size > gConfig.size) offset = gConfig.size - size;
 
 	size_t error = 0;
-	for (int address = 0; address < size; ++address)
+	for (size_t address = offset; address < offset + size; ++address)
 	{
-		if (readByte(address) != buffer[address]) error++;
+		if (readByte(address) != (uint8_t)buffer[address-offset]) error++;
 
 		gpio_put(gLedPin, (address & 0x100) != 0);
 
@@ -200,17 +201,11 @@ size_t eeprom_verifyImage(const uint8_t* buffer, size_t size) {
 }
 
 size_t eeprom_readImage(uint8_t* buffer, size_t size, size_t offset) {
-	if (size > gConfig.size)
-	{
-		size = gConfig.size;
-	}
-	if (offset + size > gConfig.size)
-	{
-		offset = gConfig.size - size;
-	}
+	if (size > gConfig.size) size = gConfig.size;
+	if (offset + size > gConfig.size) offset = gConfig.size - size;
 
 	size_t error = 0;
-	for (int address = offset; address < offset + size; ++address)
+	for (size_t address = offset; address < offset + size; ++address)
 	{
 		buffer[address-offset] = readByte(address);
 
