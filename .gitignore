@@ -10,3 +10,6 @@ fp-info-cache
 
 # Visual Studio Code
 .vscode
+
+# FreeCAD
+*.FCBak
