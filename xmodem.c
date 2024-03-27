@@ -17,6 +17,7 @@
 const int XMODEM_SOH = 1;
 const int XMODEM_EOT = 4;
 const int XMODEM_ACK = 6;
+const int XMODEM_BS = 8;
 const int XMODEM_DLE = 0x10;
 const int XMODEM_NAK = 0x15;
 const int XMODEM_CAN = 0x18;
@@ -137,7 +138,7 @@ int xmodem_receive(void* outputBuffer, size_t bufferSize, const char* message, b
 			{
 				return 0;
 			}
-			else if (xmodem_config.logLevel >= 1)
+			else if (c != XMODEM_BS && c != XMODEM_NAK && xmodem_config.logLevel >= 1)
 			{
 				sprintf(logBuffer, "Unexpected character %d received - expected SOH or EOT", c);
 				xmodem_log(logBuffer);
@@ -299,6 +300,11 @@ bool xmodem_send(char* inputBuffer, size_t bufferSize)
 				result = true;
 				if (xmodem_config.logLevel >= 1) xmodem_log("CRC disabled");
 				break;
+			}
+			else if (c == XMODEM_BS)
+			{
+				// Ignore backspaces
+				continue;
 			}
 			else if (xmodem_config.logLevel >= 1)
 			{
