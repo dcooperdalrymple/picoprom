@@ -304,6 +304,7 @@ bool xmodem_send(char* inputBuffer, size_t bufferSize)
 			{
 				sprintf(logBuffer, "Unexpected character %d received - expected %d or %d", c, 'C', XMODEM_NAK);
 				xmodem_log(logBuffer);
+				xmodem_dumplog();
 			}
 		}
 	}
@@ -316,8 +317,6 @@ bool xmodem_send(char* inputBuffer, size_t bufferSize)
 			sprintf(logBuffer, "Sending block %d - %d", block, (size_t)block*XMODEM_BLOCKSIZE);
 			xmodem_log(logBuffer);
 		}
-
-		xmodem_dumplog();
 
 		// Block header
 		putchar(XMODEM_SOH);
@@ -396,15 +395,22 @@ bool xmodem_send(char* inputBuffer, size_t bufferSize)
 	{
 		// Indicate the end of file
 		tries = 0;
+		putchar(XMODEM_EOT);
 		do
 		{
-			putchar(XMODEM_EOT);
 			c = getchar_timeout_us(1000);
-			if (c == XMODEM_ACK) break;
-			else if (c == XMODEM_NAK) continue;
-			else if (c == XMODEM_CAN && getchar_timeout_us(1000) == XMODEM_CAN) result = false;
-		} while (result && tries++ < 10);
-		if (tries >= 10)
+			if (c != PICO_ERROR_TIMEOUT) {
+				if (c == XMODEM_ACK) {
+					break;
+				} else if (c == XMODEM_CAN && getchar_timeout_us(1000) == XMODEM_CAN) {
+					result = false;
+					break;
+				} else { // c == XMODEM_NAK
+					putchar(XMODEM_EOT);
+				}
+			}
+		} while (result && tries++ < 1000);
+		if (tries >= 1000)
 		{
 			result = false;
 			if (xmodem_config.logLevel >= 1) xmodem_log("Timeout");
