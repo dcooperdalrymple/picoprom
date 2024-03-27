@@ -80,23 +80,23 @@ void init_settings()
 
 void show_settings()
 {
-	printf("EEPROM Device: %s\n", gConfig.name);
-	printf("        Capacity: %dK bytes\n", gConfig.size / 1024);
-	printf("        Page mode: %s\n", gConfig.pageSize ? "on" : "off");
+	printf("EEPROM Device: %s\r\n", gConfig.name);
+	printf("        Capacity: %dK bytes\r\n", gConfig.size / 1024);
+	printf("        Page mode: %s\r\n", gConfig.pageSize ? "on" : "off");
 	if (gConfig.pageSize)
 	{
-		printf("        Page size: %d bytes\n", gConfig.pageSize);
-		printf("        Page delay: %dms\n", gConfig.pageDelayMs);
+		printf("        Page size: %d bytes\r\n", gConfig.pageSize);
+		printf("        Page delay: %dms\r\n", gConfig.pageDelayMs);
 	}
-	printf("        Pulse delay: %dus\n", gConfig.pulseDelayUs);
-	printf("        Byte delay: %dus\n", gConfig.byteDelayUs);
-	printf("        Write protect: %s\n", gConfig.writeProtect ? "enable" : gConfig.writeProtectDisable ? "disable" : "no action / not supported");
-	printf("\n");
-	printf("Serial protocol: XMODEM+CRC\n");
-	printf("        Block size: 128 bytes\n");
-	printf("        CRC: on\n");
-	printf("        Escaping: off\n");
-	printf("        Log level: %d\n", xmodem_config.logLevel);
+	printf("        Pulse delay: %dus\r\n", gConfig.pulseDelayUs);
+	printf("        Byte delay: %dus\r\n", gConfig.byteDelayUs);
+	printf("        Write protect: %s\r\n", gConfig.writeProtect ? "enable" : gConfig.writeProtectDisable ? "disable" : "no action / not supported");
+	printf("\r\n");
+	printf("Serial protocol: XMODEM+CRC\r\n");
+	printf("        Block size: 128 bytes\r\n");
+	printf("        CRC: on\r\n");
+	printf("        Escaping: off\r\n");
+	printf("        Log level: %d\r\n", xmodem_config.logLevel);
 }
 
 
@@ -108,14 +108,14 @@ static void change_device()
 
 	memcpy(&gConfig, &gConfigs[gConfigIndex], sizeof gConfig);
 
-	printf("\n\nChanged device to %s\n", gConfig.name);
+	printf("\r\n\r\nChanged device to %s\r\n", gConfig.name);
 }
 
 static void change_log_level()
 {
 	xmodem_config.logLevel = (xmodem_config.logLevel + 1) % 4;
 
-	printf("\n\nChanged log level to %d\n", xmodem_config.logLevel);
+	printf("\r\n\r\nChanged log level to %d\r\n", xmodem_config.logLevel);
 }
 
 
@@ -132,22 +132,22 @@ void change_settings()
 {
 	while (true)
 	{
-		printf("\n\n");
-		printf("\n\n");
-		printf("\n\n");
+		printf("\r\n\r\n");
+		printf("\r\n\r\n");
+		printf("\r\n\r\n");
 
 		show_settings();
 		
-		printf("\n\n");
+		printf("\r\n\r\n");
 		
-		printf("Changing settings:\n");
-		printf("\n");
+		printf("Changing settings:\r\n");
+		printf("\r\n");
 		
 		for (int i = 0; gCommands[i].key; ++i)
 		{
-			printf("    %c = %s\n", gCommands[i].key, gCommands[i].commandName);
+			printf("    %c = %s\r\n", gCommands[i].key, gCommands[i].commandName);
 		}
-		printf("\n");
+		printf("\r\n");
 		printf("?");
 
 		int c = getchar();

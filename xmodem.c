@@ -39,13 +39,14 @@ static int gLogPos = 0;
 
 static void xmodem_log(char *s)
 {
-	if (gLogPos + strlen(s) + 2 >= sizeof gLogBuffer)
+	if (gLogPos + strlen(s) + 3 >= sizeof gLogBuffer)
 	{
 		gLogPos = sizeof gLogBuffer;
 		return;
 	}
 	strcpy(gLogBuffer + gLogPos, s);
 	gLogPos += strlen(s);
+	gLogBuffer[gLogPos++] = '\r';
 	gLogBuffer[gLogPos++] = '\n';
 	gLogBuffer[gLogPos] = 0;
 }

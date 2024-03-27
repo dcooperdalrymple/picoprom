@@ -19,14 +19,15 @@ static bool setup()
 	bool eepromOk = eeprom_init();
 
 	stdio_init_all();
+	stdio_set_translate_crlf(&stdio_usb, false); // Disable automatic carriage return
 
 	while (!tud_cdc_connected()) sleep_ms(100);
-	printf("\nUSB Serial connected\n");
+	printf("\r\nUSB Serial connected\r\n");
 
 
 	if (!eepromOk)
 	{
-		printf("ERROR: no pin was mapped to Write Enable (ID 15)\n");
+		printf("ERROR: no pin was mapped to Write Enable (ID 15)\r\n");
 		return false;
 	}
 
@@ -39,38 +40,38 @@ static bool setup()
 
 static void banner()
 {
-	printf("\n\n");
-	printf("\n\n");
-	printf("\n\n");
+	printf("\r\n\r\n");
+	printf("\r\n\r\n");
+	printf("\r\n\r\n");
 
-	printf("PicoPROM v0.22   Raspberry Pi Pico DIP-EEPROM programmer\n");
-	printf("                 by George Foot, February 2021 & Cooper Dalrymple, March 2024\n");
-	printf("                 https://github.com/dcooperdalrymple/picoprom\n");
+	printf("PicoPROM v0.22   Raspberry Pi Pico DIP-EEPROM programmer\r\n");
+	printf("                 by George Foot, February 2021 & Cooper Dalrymple, March 2024\r\n");
+	printf("                 https://github.com/dcooperdalrymple/picoprom\r\n");
 }
 
 #if VERIFY_ROM
 static void read_image()
 {
-	printf("\nReading EEPROM contents...");
+	printf("\r\nReading EEPROM contents...");
 	int sizeReceived = eeprom_readImage(buffer, sizeof buffer, 0);
-	printf("\nReady to send ROM image...\n");
+	printf("\r\nReady to send ROM image...\r\n");
 	if (xmodem_send(buffer, sizeReceived))
 	{
-		printf("\nSend transfer complete - delivered %d bytes\n", sizeReceived);
+		printf("\r\nSend transfer complete - delivered %d bytes\r\n", sizeReceived);
 	}
 	else
 	{
-		printf("\nXMODEM send transfer failed\n");
+		printf("\r\nXMODEM send transfer failed\r\n");
 	}
-	printf("\n");
+	printf("\r\n");
 	xmodem_dumplog();
-	printf("\n");
+	printf("\r\n");
 }
 
 static void read_page()
 {
 	int i, j, k, mul, page = 0, len = 0;
-	printf("\nEnter the number of the page you would like to view then hit enter: ");
+	printf("\r\nEnter the number of the page you would like to view then hit enter: ");
 
 	// Get number value
 	do
@@ -94,13 +95,13 @@ static void read_page()
 		page += j * mul;
 	}
 
-	printf("\nReading EEPROM page %d contents...", page);
+	printf("\r\nReading EEPROM page %d contents...", page);
 	int sizeReceived = eeprom_readImage(buffer, gConfig.pageSize, page * gConfig.pageSize);
 	for (int i = 0; i < sizeReceived; i++) {
-		if (i % 16 == 0) printf("\n");
+		if (i % 16 == 0) printf("\r\n");
 		printf("%02X ", buffer[i]);
 	}
-	printf("\n");
+	printf("\r\n");
 }
 #endif
 
@@ -130,38 +131,38 @@ static bool input_handler(int c)
 
 void loop()
 {
-	printf("\n\n");
-	printf("\n\n");
-	printf("\n\n");
+	printf("\r\n\r\n");
+	printf("\r\n\r\n");
+	printf("\r\n\r\n");
 
 	banner();
 
-	printf("\n\n");
+	printf("\r\n\r\n");
 	
 	show_settings();
 	
-	printf("\n\n");
-	printf("Ready to program - send data now\n");
-	printf("Other options:\n");
+	printf("\r\n\r\n");
+	printf("Ready to program - send data now\r\n");
+	printf("Other options:\r\n");
 	for (int i = 0; mCommands[i].key; ++i)
 	{
 		if (mCommands[i].key == 13)
 		{
-			printf("    enter = %s\n", mCommands[i].commandName);
+			printf("    enter = %s\r\n", mCommands[i].commandName);
 		}
 		else
 		{
-			printf("    %c = %s\n", mCommands[i].key, mCommands[i].commandName);
+			printf("    %c = %s\r\n", mCommands[i].key, mCommands[i].commandName);
 		}
 	}
-	printf("\n");
+	printf("\r\n");
 
 	int sizeReceived = xmodem_receive(buffer, sizeof buffer, NULL, input_handler);
 
 	if (sizeReceived < 0)
 	{
 		xmodem_dumplog();
-		printf("XMODEM transfer failed\n");
+		printf("XMODEM transfer failed\r\n");
 	}
 
 	if (sizeReceived <= 0)
@@ -169,35 +170,35 @@ void loop()
 		return;
 	}
 
-	printf("\n");
-	printf("Transfer complete - received %d bytes\n", sizeReceived);
-	printf("\n");
+	printf("\r\n");
+	printf("Transfer complete - received %d bytes\r\n", sizeReceived);
+	printf("\r\n");
 
 	if (sizeReceived > gConfig.size)
 	{
-		printf("Truncating image to %d bytes\n", gConfig.size);
-		printf("\n");
+		printf("Truncating image to %d bytes\r\n", gConfig.size);
+		printf("\r\n");
 		sizeReceived = gConfig.size;
 	}
 
-	printf("Writing to EEPROM...\n");
+	printf("Writing to EEPROM...\r\n");
 	eeprom_writeImage(buffer, sizeReceived);
-	printf("\n");
+	printf("\r\n");
 
 	#if VERIFY_ROM
-	printf("Verifying EEPROM contents...\n");
+	printf("Verifying EEPROM contents...\r\n");
 	sleep_ms(gConfig.pageDelayMs);
 	size_t error = eeprom_verifyImage(buffer, sizeReceived, 0);
-	printf("\n");
+	printf("\r\n");
 	if (error > 0) {
-		printf("ROM verification failed: %d incorrect bytes out of %d\n", error, sizeReceived);
+		printf("ROM verification failed: %d incorrect bytes out of %d\r\n", error, sizeReceived);
 	} else {
-		printf("ROM verification succeeded\n");
+		printf("ROM verification succeeded\r\n");
 	}
-	printf("\n");
+	printf("\r\n");
 	#endif
 
-	printf("Done\n");
+	printf("Done\r\n");
 }
 
 
