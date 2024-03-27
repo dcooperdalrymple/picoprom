@@ -48,6 +48,7 @@ static void banner()
 	printf("                 https://github.com/dcooperdalrymple/picoprom\n");
 }
 
+#if VERIFY_ROM
 static void read_image()
 {
 	printf("\nReading EEPROM contents...");
@@ -101,11 +102,14 @@ static void read_page()
 	}
 	printf("\n");
 }
+#endif
 
 static command_t mCommands[] =
 {
+	#if VERIFY_ROM
 	{ 'r', "receive eeprom image", read_image },
 	{ 'p', "read eeprom page", read_page },
+	#endif
 	{ 13, "change settings", change_settings },
 	{ 0 }
 };
