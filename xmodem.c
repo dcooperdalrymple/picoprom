@@ -415,8 +415,8 @@ bool xmodem_send(char* inputBuffer, size_t bufferSize)
 					putchar(XMODEM_EOT);
 				}
 			}
-		} while (result && tries++ < 1000);
-		if (tries >= 1000)
+		} while (result && ++tries < 2000);
+		if (tries >= 2000)
 		{
 			result = false;
 			if (xmodem_config.logLevel >= 1) xmodem_log("Timeout");
