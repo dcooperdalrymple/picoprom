@@ -422,7 +422,8 @@ bool xmodem_send(char* inputBuffer, size_t bufferSize)
 			if (xmodem_config.logLevel >= 1) xmodem_log("Timeout");
 		}
 	}
-	else
+	
+	if (!result)
 	{
 		// Send cancels to terminate the transaction
 		for (int i = 0; i < 8; ++i)
