@@ -315,7 +315,7 @@ bool xmodem_send(char* inputBuffer, size_t bufferSize)
 		}
 	}
 	while (tries++ < 30000);
-	if (tries >= 30000 && xmodem_config.logLevel >= 1) xmodem_log("Timeout");
+	if (tries >= 30000 && xmodem_config.logLevel >= 1) xmodem_log("Transfer Start Timeout");
 
 	while (!!result && bufpos < bufferSize)
 	{
@@ -419,7 +419,7 @@ bool xmodem_send(char* inputBuffer, size_t bufferSize)
 		if (tries >= 2000)
 		{
 			result = false;
-			if (xmodem_config.logLevel >= 1) xmodem_log("Timeout");
+			if (xmodem_config.logLevel >= 1) xmodem_log("EOT Timeout");
 		}
 	}
 	
