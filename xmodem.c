@@ -139,7 +139,7 @@ int xmodem_receive(void* outputBuffer, size_t bufferSize, const char* message, b
 			}
 			else if (xmodem_config.logLevel >= 1)
 			{
-				sprintf(logBuffer, "Unexected character %d received - expected SOH or EOT", c);
+				sprintf(logBuffer, "Unexpected character %d received - expected SOH or EOT", c);
 				xmodem_log(logBuffer);
 			}
 		}
@@ -302,7 +302,7 @@ bool xmodem_send(char* inputBuffer, size_t bufferSize)
 			}
 			else if (xmodem_config.logLevel >= 1)
 			{
-				sprintf(logBuffer, "Unexected character %d received - expected %d or %d", c, 'C', XMODEM_NAK);
+				sprintf(logBuffer, "Unexpected character %d received - expected %d or %d", c, 'C', XMODEM_NAK);
 				xmodem_log(logBuffer);
 			}
 		}
