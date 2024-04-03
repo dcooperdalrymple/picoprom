@@ -2,11 +2,11 @@
 /build/
 
 # KiCAD
-/hardware/picoprom-backups
 fp-info-cache
 *.bak
-/hardware/plots/
 *.lck
+*-backups
+plots
 
 # Visual Studio Code
 .vscode
