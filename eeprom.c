@@ -4,6 +4,7 @@
 
 #include "hardware/gpio.h"
 #include "pico/stdlib.h"
+#include "pico/rand.h"
 
 #include "picoprom.h"
 #include "configs.h"
@@ -98,9 +99,9 @@ static void writeByte(uint16_t address, uint8_t data)
 	#endif
 }
 
+typedef uint8_t (*image_func)(size_t address);
 
-void eeprom_writeImage(const uint8_t* buffer, size_t size)
-{
+void writeImage(image_func cb, size_t size) {
 	if (gConfig.writeProtectDisable)
 	{
 		writeByte(0x5555, 0xaa);
@@ -133,7 +134,7 @@ void eeprom_writeImage(const uint8_t* buffer, size_t size)
 
 		prevAddress = address;
 		
-		writeByte(address, buffer[address]);
+		writeByte(address, cb(address));
 
 		gpio_put(gLedPin, (address & 0x100) != 0);
 
@@ -142,6 +143,40 @@ void eeprom_writeImage(const uint8_t* buffer, size_t size)
 			printf(" %dK", (address + 1) >> 10);
 		}
 	}
+}
+
+const static uint8_t * imgBuffer;
+static size_t imgSize;
+uint8_t retImage(size_t address) {
+	return imgBuffer[address];
+}
+void eeprom_writeImage(const uint8_t* buffer, size_t size) {
+	imgBuffer = buffer;
+	imgSize = size;
+	writeImage(retImage, size);
+}
+
+static uint8_t writeVal = 0;
+uint8_t retValue(size_t address) {
+	return writeVal;
+}
+void eeprom_writeValue(uint8_t value) {
+	writeVal = value;
+	writeImage(retValue, gConfig.size);
+}
+
+uint8_t retRandom(size_t address) {
+	return (uint8_t)(get_rand_32() & 0xff);
+}
+void eeprom_writeRandom() {
+	writeImage(retRandom, gConfig.size);
+}
+
+uint8_t retIndex(size_t address) {
+	return (uint8_t)(address & 0xff);
+}
+void eeprom_writeIndex() {
+	writeImage(retIndex, gConfig.size);
 }
 
 #if VERIFY_ROM

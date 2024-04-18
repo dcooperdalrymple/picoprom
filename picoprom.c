@@ -103,14 +103,67 @@ static void read_page()
 	}
 	printf("\r\n");
 }
+
+static void verify_image() {
+	// TODO: receive image over xmodem and verify with rom
+}
 #endif
+
+static void write_zeroes() {
+	printf("\r\n");
+	printf("Writing zeroes to EEPROM...\r\n");
+	eeprom_writeValue(0x00);
+	printf("\r\n");
+
+	// TODO: Implement verification
+
+	printf("Done\r\n");
+}
+
+static void write_ones() {
+	printf("\r\n");
+	printf("Writing zeroes to EEPROM...\r\n");
+	eeprom_writeValue(0xff);
+	printf("\r\n");
+
+	// TODO: Implement verification
+
+	printf("Done\r\n");
+}
+
+static void write_random() {
+	printf("\r\n");
+	printf("Writing random values to EEPROM...\r\n");
+	eeprom_writeRandom();
+	printf("\r\n");
+
+	// TODO: Implement verification
+
+	printf("Done\r\n");
+}
+
+static void write_index() {
+	printf("\r\n");
+	printf("Writing address index values to EEPROM...\r\n");
+	eeprom_writeIndex();
+	printf("\r\n");
+
+	// TODO: Implement verification
+
+	printf("Done\r\n");
+}
 
 static command_t mCommands[] =
 {
 	#if VERIFY_ROM
 	{ 'r', "receive eeprom image", read_image },
 	{ 'p', "read eeprom page", read_page },
+	{ 'v', "verify eeprom image", verify_image },
 	#endif
+	{ '0', "write all 0 values to eeprom", write_zeroes },
+	{ '1', "write all 1 values to eeprom", write_ones },
+	{ '2', "write random values to eeprom", write_random },
+	{ '3', "write address index to eeprom", write_index },
 	{ 13, "change settings", change_settings },
 	{ 0 }
 };

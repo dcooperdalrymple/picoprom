@@ -17,7 +17,7 @@ add_executable(picoprom
 
 pico_add_extra_outputs(picoprom)
 
-target_link_libraries(picoprom pico_stdlib)
+target_link_libraries(picoprom pico_stdlib pico_rand)
 
 pico_enable_stdio_usb(picoprom 1)
 pico_enable_stdio_uart(picoprom 0)
