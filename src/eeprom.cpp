@@ -1,4 +1,4 @@
-#include "eeprom.h"
+#include "eeprom.hpp"
 
 #include <stdio.h>
 
@@ -6,8 +6,8 @@
 #include "pico/stdlib.h"
 #include "pico/rand.h"
 
-#include "picoprom.h"
-#include "configs.h"
+#include "picoprom.hpp"
+#include "configs.hpp"
 
 
 /* Configure which EEPROM pin is connected to each GPIO pin.

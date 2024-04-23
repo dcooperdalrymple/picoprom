@@ -1,13 +1,10 @@
-#ifndef INCLUDED_EEPROM_H
-#define INCLUDED_EEPROM_H
-
 #pragma once
 
 #include <stddef.h>
 #include <stdbool.h>
 #include <stdint.h>
 
-#include "picoprom.h"
+#include "picoprom.hpp"
 
 bool eeprom_init();
 
@@ -19,6 +16,4 @@ void eeprom_writeIndex();
 #if VERIFY_ROM
 size_t eeprom_verifyImage(const uint8_t* buffer, size_t size, size_t offset);
 size_t eeprom_readImage(uint8_t* buffer, size_t size, size_t offset);
-#endif
-
 #endif

@@ -1,13 +1,8 @@
-#ifndef INCLUDED_CONFIGS_H
-#define INCLUDED_CONFIGS_H
-
 #pragma once
 
 #include <stdbool.h>
 
-
-typedef struct
-{
+typedef struct {
 	const char *name;
 	int size;
 	int pageSize;
@@ -16,23 +11,14 @@ typedef struct
 	int byteDelayUs;
 	bool writeProtect;
 	bool writeProtectDisable;
+	//bool invertclock;
+	#if VERIFY_ROM
+	//bool readonly;
+	#endif
 } picoprom_config_t;
-
 
 extern picoprom_config_t gConfig;
 
-
-typedef struct
-{
-	char key;
-	const char* commandName;
-	void (*action)();
-} command_t;
-
-
-void init_settings();
-void show_settings();
-void change_settings();
-
-
-#endif
+void init_device();
+void print_device();
+void change_device();

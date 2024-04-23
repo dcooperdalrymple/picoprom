@@ -1,0 +1,3 @@
+[submodule "lib/pico-xmodem"]
+	path = lib/pico-xmodem
+	url = https://github.com/dcooperdalrymple/pico-xmodem.git
