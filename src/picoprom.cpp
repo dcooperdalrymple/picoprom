@@ -67,7 +67,6 @@ static bool send_image() {
 	return result;
 }
 
-#if VERIFY_ROM
 static bool verify_buffer() {
 	if (!image_size) return false;
 	printf("Verifying ROM contents... ");
@@ -82,7 +81,6 @@ static bool verify_buffer() {
 	printf("\r\n");
 	return !error;
 }
-#endif
 
 static void write_image() {
 	if (!receive_image()) return;
@@ -101,12 +99,9 @@ static void write_image() {
 	eeprom_writeImage(buffer, image_size);
 	printf("\r\n");
 
-	#if VERIFY_ROM
 	verify_buffer();
-	#endif
 }
 
-#if VERIFY_ROM
 static void read_image() {
 	printf("Reading EEPROM contents...");
 	image_size = eeprom_readImage(buffer, MAXSIZE, 0);
@@ -157,7 +152,6 @@ static void verify_image() {
 	if (!receive_image()) return;
 	verify_buffer();
 }
-#endif
 
 // Tools
 
@@ -266,12 +260,10 @@ static void settings_menu() {
 
 static Command menu_commands[] = {
 	{ 'w', "Write image", write_image },
-	#if VERIFY_ROM
 	{ 'r', "Read image", read_image },
 	{ 'p', "Read page", read_page },
 	{ 'v', "Verify image", verify_image },
 	{ 't', "Tools", tools_menu },
-	#endif
 	{ 's', "Settings", settings_menu },
 	{ 0 }
 };

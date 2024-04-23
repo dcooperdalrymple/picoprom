@@ -11,10 +11,8 @@ typedef struct {
 	int byteDelayUs;
 	bool writeProtect;
 	bool writeProtectDisable;
-	//bool invertclock;
-	#if VERIFY_ROM
-	//bool readonly;
-	#endif
+	bool invertClock;
+	bool readonly;
 } picoprom_config_t;
 
 extern picoprom_config_t gConfig;

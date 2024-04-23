@@ -16,55 +16,36 @@
  *    A0-A14      0-14
  *    CE          15
  *    I/O0-I/O7   16-23
- *    OE		  24 (VERIFY_ROM mode only)
- *    WE  		  25 (VERIFY_ROM mode only)
+ *    OE		  24
+ *    WE  		  25
  *
- * VCC, GND, WE and OE are not driven and should be permanently connected
- * to the supply rails (OE to VCC, CE to GND). (not VERIFY_ROM mode)
+ * VCC and GND are not driven and should be permanently connected
+ * to the supply rails.
  *
  * Negative numbers indicate none of the above are connected to this GPIO pin.
  */
 static const int gPinMapping[] =
 {
-	#if VERIFY_ROM
-	24, 25,
-	#else
-	-1, -1,
-	#endif
-	         13, 14, 12, 7,  6, 5, 4, 3,  2, 1, 0, 16,  17, 18,
-
+	24, 25, 13, 14, 12, 7,  6, 5, 4, 3,  2, 1, 0, 16,  17, 18,
 	19, 20,  21, 22, 23, 15,  10,  -1, -1, -1,  11, 9,  8,
 };
 
 static const int gLedPin = 25;
 
 int gChipEnablePin;
-#if VERIFY_ROM
 int gOutputEnablePin;
 int gWriteEnablePin;
-#endif
 
 /* Mask of all GPIO bits used for EEPROM pins */
 static uint32_t gAllBits;
-#if VERIFY_ROM
 static uint32_t gDataBits;
 static uint32_t gControlBits;
 static int gDataPins[8];
-#endif
 
 
 /* Pack address, data, chipEnable, outputEnable, and writeEnable into a GPIO word */
-#if VERIFY_ROM
-static uint32_t packGpioBits(uint16_t address, uint8_t data, bool chipEnable, bool outputEnable, bool writeEnable)
-#else
-static uint32_t packGpioBits(uint16_t address, uint8_t data, bool chipEnable)
-#endif
-{
-	#if VERIFY_ROM
+static uint32_t packGpioBits(uint16_t address, uint8_t data, bool chipEnable, bool outputEnable, bool writeEnable) {
 	uint32_t tempPacking = address | ((uint32_t)data << 16) | (!!chipEnable << 15) | (!!outputEnable << 24) | (!!writeEnable << 25);
-	#else
-	uint32_t tempPacking = address | ((uint32_t)data << 16) | (!!chipEnable << 15);
-	#endif
 
 	uint32_t realPacking = 0;
 	for (int i = 0; i < sizeof gPinMapping / sizeof *gPinMapping; ++i)
@@ -79,12 +60,7 @@ static uint32_t packGpioBits(uint16_t address, uint8_t data, bool chipEnable)
 
 static void writeByte(uint16_t address, uint8_t data)
 {
-	uint32_t bits;
-	#if VERIFY_ROM
-	bits = packGpioBits(address, data, false, true, false);
-	#else
-	bits = packGpioBits(address, data, false);
-	#endif
+	uint32_t bits = packGpioBits(address, data, false, true, false);
 
 	gpio_put_masked(gAllBits, bits | (1 << gChipEnablePin));
 	busy_wait_us(gConfig.pulseDelayUs);
@@ -93,10 +69,8 @@ static void writeByte(uint16_t address, uint8_t data)
 	gpio_put_masked(gAllBits, bits | (1 << gChipEnablePin));
 	busy_wait_us(gConfig.byteDelayUs);
 
-	#if VERIFY_ROM
 	gpio_put_masked(gAllBits, bits | (1 << gChipEnablePin) | (1 << gWriteEnablePin));
 	busy_wait_us(gConfig.pulseDelayUs);
-	#endif
 }
 
 typedef uint8_t (*image_func)(size_t address);
@@ -179,8 +153,6 @@ void eeprom_writeIndex() {
 	writeImage(retIndex, gConfig.size);
 }
 
-#if VERIFY_ROM
-
 static uint8_t readByte(uint16_t address) {
 	uint32_t bits = packGpioBits(address, 0x00, false, false, true);
 	uint32_t dataBits;
@@ -255,17 +227,11 @@ size_t eeprom_readImage(uint8_t* buffer, size_t size, size_t offset) {
 	return size;
 }
 
-#endif
-
 bool eeprom_init()
 {
-	#if VERIFY_ROM
 	gAllBits = packGpioBits(0xffff, 0xff, true, true, true);
 	gDataBits = packGpioBits(0x0000, 0xff, false, false, false);
 	gControlBits = packGpioBits(0xffff, 0x00, true, true, true);
-	#else
-	gAllBits = packGpioBits(0xffff, 0xff, true);
-	#endif
 
 	gpio_init(gLedPin);
 	gpio_set_dir(gLedPin, GPIO_OUT);
@@ -276,41 +242,31 @@ bool eeprom_init()
 	gpio_put_masked(gAllBits, gAllBits);
 
 	gChipEnablePin = -1;
-	#if VERIFY_ROM
 	gOutputEnablePin = -1;
 	gWriteEnablePin = -1;
 	for (int i = 0; i < 8; i++) {
 		gDataPins[i] = -1;
 	}
-	#endif
 	for (int i = 0; i < sizeof gPinMapping / sizeof *gPinMapping; ++i)
 	{
 		switch (gPinMapping[i]) {
 			case 15:
 				gChipEnablePin = i;
 				break;
-			#if VERIFY_ROM
 			case 24:
 				gOutputEnablePin = i;
 				break;
 			case 25:
 				gWriteEnablePin = i;
 				break;
-			#endif
 		}
-		#if VERIFY_ROM
 		if (gPinMapping[i] >= 16 && gPinMapping[i] < 24) {
 			gDataPins[gPinMapping[i]-16] = i;
 		}
-		#endif
 	}
 
-	#if VERIFY_ROM
 	for (int i = 0; i < 8; i++) {
 		if (gDataPins[i] < 0) return false;
 	}
 	return gChipEnablePin >= 0 && gOutputEnablePin >= 0 && gWriteEnablePin >= 0;
-	#else
-	return gChipEnablePin >= 0;
-	#endif
 }

@@ -27,8 +27,3 @@ target_link_libraries(${NAME} pico_stdlib pico_rand pico_xmodem)
 
 pico_enable_stdio_usb(${NAME} 1)
 pico_enable_stdio_uart(${NAME} 0)
-
-option(VERIFY_ROM "Support rom verification with octal bus transceiver" OFF)
-if(VERIFY_ROM)
-	target_compile_definitions(${NAME} PUBLIC VERIFY_ROM=1)
-endif()
