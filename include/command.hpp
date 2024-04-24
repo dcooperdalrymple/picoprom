@@ -1,5 +1,6 @@
 #pragma once
 #include "pico/stdlib.h"
+#include <stdio.h>
 
 typedef void (*command_action_t)();
 

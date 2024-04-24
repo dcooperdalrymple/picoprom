@@ -11,9 +11,11 @@
 
 #include "config.hpp"
 #include "rom.hpp"
+#include "storage.hpp"
 #include "command.hpp"
 
 static uint8_t buffer[MAXSIZE];
+static char input_buffer[MAXINPUTSIZE+1];
 static size_t image_size;
 static XMODEM xmodem;
 static ROM * rom = NULL;
@@ -27,6 +29,8 @@ static Command transfer_options[] = {
 	{ 0 }
 };
 
+static Command * storage_items;
+
 static bool receive_image() {
 	command = command_prompt(transfer_options, "Select how you would like to transfer the image", true);
 	if (!command) return false;
@@ -35,11 +39,22 @@ static bool receive_image() {
 	switch (command->key) {
 		case 'x':
 			printf("Ready to receive image. Begin XMODEM transfer... ");
-			image_size = xmodem.receive(buffer, MAXSIZE);
-			if (!image_size) printf("\r\nXMODEM transfer failed\r\n");
+			if (image_size = xmodem.receive(buffer, MAXSIZE)) {
+				printf("\r\nTransfer complete!\r\n");
+			} else {
+				printf("\r\nXMODEM transfer failed\r\n");
+			}
 			break;
 		case 's':
-			printf("Not yet implemented.\r\n");
+			if (storage_items && storage_items[0].key) delete storage_items;
+			if (!(storage_items = get_dir_items())) {
+				printf("No files available in local flash storage.\r\n");
+			} else if (command = command_prompt(storage_items, "Select the file you would like to use", true)) {
+				printf("Reading \"%s\"...\r\n", command->name);
+				if (!(image_size = read_file(command->name, buffer, MAXSIZE))) {
+					printf("Failed to read data from \"%s\".\r\n", command->name);
+				}
+			}
 			break;
 	}
 	printf("\r\n");
@@ -62,7 +77,32 @@ static bool send_image() {
 			}
 			break;
 		case 's':
-			printf("Not yet implemented.\r\n");
+			uint i, j, len = 0;
+			do {
+				printf("Enter a valid filename (%d characters max, leave empty to quit): ", MAXINPUTSIZE);
+				do {
+					input_buffer[len] = getchar();
+					if (input_buffer[len] == 13) break; // Carriage return
+					putchar(input_buffer[len]);
+				} while (len++ < MAXINPUTSIZE);
+				printf("\r\n");
+				if (len == 0) break;
+				input_buffer[len] = 0;
+				if (!valid_filename(input_buffer)) len = 0;
+				if (file_exists(input_buffer)) {
+					printf("File already exists.\r\n");
+					len = 0;
+				}
+			} while (!len);
+			if (len) {
+				printf("\r\nWriting data to \"%s\"...\r\n", input_buffer);
+				if (write_file(input_buffer, buffer, image_size)) {
+					printf("Successfully written data to file.\r\n", input_buffer);
+					result = true;
+				} else {
+					printf("Failed to write to flash storage.\r\n");
+				}
+			}
 			break;
 	}
 	printf("\r\n");
@@ -86,15 +126,12 @@ static bool verify_buffer() {
 static void write_image() {
 	if (!receive_image()) return;
 
-	printf("\r\n");
-	printf("Transfer complete - received %d bytes\r\n", image_size);
-	printf("\r\n");
-
+	printf("Preparing image with a size of %d bytes\r\n", image_size);
 	if (image_size > rom->get_size()) {
 		printf("Truncating image to %d bytes\r\n", rom->get_size());
-		printf("\r\n");
 		image_size = rom->get_size();
 	}
+	printf("\r\n");
 
 	printf("Writing to device... ");
 	rom->write_image(buffer, image_size);
@@ -115,6 +152,7 @@ static void read_image() {
 }
 
 static void read_page() {
+	// TODO: optimize data types
 	int i, j, k, mul, page = 0, len = 0;
 
 	image_size = rom->get_page_size();
@@ -124,14 +162,14 @@ static void read_page() {
 
 	// Get number value
 	do {
-		buffer[len] = getchar();
-		putchar(buffer[len]);
-		if (buffer[len] == 13) break; // Carriage return
+		input_buffer[len] = getchar();
+		putchar(input_buffer[len]);
+		if (input_buffer[len] == 13) break; // Carriage return
 	} while (len++ < 5);
 
 	// Convert ascii characters to number
 	for (i = len-1; i >= 0; i--) {
-		j = buffer[i] - 48;
+		j = input_buffer[i] - 48;
 		if (j > 9 || j < 0) break;
 		mul = 1;
 		for (k = 0; k < len-i-1; k++) {
@@ -290,6 +328,40 @@ static void settings_menu() {
 	}
 }
 
+// Filesystem
+
+static void filesystem_delete() {
+	if (storage_items && storage_items[0].key) delete storage_items;
+	if (!(storage_items = get_dir_items())) {
+		printf("No files available in local flash storage.\r\n");
+	} else if (command = command_prompt(storage_items, "Select the file you would like to delete", true)) {
+		printf("Deleting \"%s\"...\r\n", command->name);
+		if (delete_file(command->name)) {
+			printf("Successfully deleted file.\r\n");
+		} else {
+			printf("Unable to delete file.\r\n");
+		}
+	}
+	printf("\r\n");
+}
+
+static Command filesystem_commands[] = {
+	{ 'd', "Delete file", filesystem_delete },
+	// TODO: Rename, Reformat
+	{ 0 }
+};
+
+static void filesystem_menu() {
+	while (true) {
+		printf("Available Files:\r\n");
+		print_dir_items();
+		printf("\r\n");
+		command = command_prompt(filesystem_commands, "Select the file operation you would like to perform", true);
+		if (!command) break;
+		if (command->action) command->action();
+	}
+}
+
 // Main Menu
 
 static Command menu_commands[] = {
@@ -299,6 +371,7 @@ static Command menu_commands[] = {
 	{ 'v', "Verify image", verify_image },
 	{ 't', "Tools", tools_menu },
 	{ 's', "Settings", settings_menu },
+	{ 'f', "Manage files", filesystem_menu },
 	{ 0 }
 };
 
@@ -306,6 +379,7 @@ int main() {
 	bi_decl(bi_program_description("PicoPROM - ROM programming tool"));
 
 	init_rom();
+	init_filesystem();
 
 	while (true) {
 
