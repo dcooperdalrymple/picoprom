@@ -1,3 +1,6 @@
 [submodule "lib/pico-xmodem"]
 	path = lib/pico-xmodem
 	url = https://github.com/dcooperdalrymple/pico-xmodem.git
+[submodule "lib/pico-filesystem"]
+	path = lib/pico-filesystem
+	url = https://github.com/Memotech-Bill/pico-filesystem.git
