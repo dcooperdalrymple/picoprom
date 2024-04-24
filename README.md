@@ -96,6 +96,3 @@ such as the 74HC245 must be used on the data bus between the Pico and the EEPROM
 The output enable and write enable pins must also be connected to GP0 and GP1 respectively.
 The direction of this transceiver is controlled by the OE pin. Please refer to the
 [included schematic](hardware/assets/schematic.pdf) for appropriate wiring.
-
-When configuring cmake while building the source code, enable the `VERIFY_ROM` option
-by using the following command from within the `build` folder, `cmake -DVERIFY_ROM=ON ..`.
