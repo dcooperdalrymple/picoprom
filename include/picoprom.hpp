@@ -4,4 +4,6 @@
 #define MAXSIZE 65536
 #endif
 
-#define MAXINPUTSIZE 11
+#ifndef MAXFILES
+#define MAXFILES 32
+#endif

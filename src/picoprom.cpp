@@ -3,11 +3,13 @@
 #include <stdio.h>
 #include <tusb.h>
 #include <typeinfo>
+#include <cstdlib>
 
 #include "pico/binary_info.h"
 #include "pico/stdlib.h"
 
 #include "xmodem.hpp"
+#include <lfs.h>
 
 #include "config.hpp"
 #include "rom.hpp"
@@ -15,7 +17,7 @@
 #include "command.hpp"
 
 static uint8_t buffer[MAXSIZE];
-static char input_buffer[MAXINPUTSIZE+1];
+static char input_buffer[LFS_NAME_MAX+1];
 static size_t image_size;
 static XMODEM xmodem;
 static ROM * rom = NULL;
@@ -29,7 +31,7 @@ static Command transfer_options[] = {
 	{ 0 }
 };
 
-static Command * storage_items;
+static char storage_items[MAXFILES][LFS_NAME_MAX+1];
 
 static bool receive_image() {
 	command = command_prompt(transfer_options, "Select how you would like to transfer the image", true);
@@ -38,6 +40,7 @@ static bool receive_image() {
 	image_size = 0;
 	switch (command->key) {
 		case 'x':
+			// TODO: quit during timeout?
 			printf("Ready to receive image. Begin XMODEM transfer... ");
 			if (image_size = xmodem.receive(buffer, MAXSIZE)) {
 				printf("\r\nTransfer complete!\r\n");
@@ -46,13 +49,15 @@ static bool receive_image() {
 			}
 			break;
 		case 's':
-			if (storage_items && storage_items[0].key) delete storage_items;
-			if (!(storage_items = get_dir_items())) {
+			uint i, j;
+			if (!get_dir_items(storage_items, MAXFILES)) {
 				printf("No files available in local flash storage.\r\n");
-			} else if (command = command_prompt(storage_items, "Select the file you would like to use", true)) {
-				printf("Reading \"%s\"...\r\n", command->name);
-				if (!(image_size = read_file(command->name, buffer, MAXSIZE))) {
-					printf("Failed to read data from \"%s\".\r\n", command->name);
+			} else if ((i = option_prompt(storage_items, "Select the file you would like to use", true)) >= 0) {
+				// Change space to null terminator if found in appended size
+				for (j = 0; j < LFS_NAME_MAX; j++) if (storage_items[i][j] == ' ') storage_items[i][j] = 0;
+				printf("Reading \"%s\"...\r\n", storage_items[i]);
+				if (!(image_size = read_file(storage_items[i], buffer, MAXSIZE))) {
+					printf("Failed to read data from \"%s\".\r\n", storage_items[i]);
 				}
 			}
 			break;
@@ -79,12 +84,12 @@ static bool send_image() {
 		case 's':
 			uint i, j, len = 0;
 			do {
-				printf("Enter a valid filename (%d characters max, leave empty to quit): ", MAXINPUTSIZE);
+				printf("Enter a valid filename (%d characters max, leave empty to quit): ", LFS_NAME_MAX);
 				do {
 					input_buffer[len] = getchar();
 					if (input_buffer[len] == 13) break; // Carriage return
 					putchar(input_buffer[len]);
-				} while (len++ < MAXINPUTSIZE);
+				} while (len++ < LFS_NAME_MAX);
 				printf("\r\n");
 				if (len == 0) break;
 				input_buffer[len] = 0;
@@ -141,7 +146,7 @@ static void write_image() {
 }
 
 static void read_image() {
-	printf("Reading device contents...");
+	printf("Reading device contents... ");
 	if (rom->read(buffer)) {
 		image_size = rom->get_size();
 	} else {
@@ -178,7 +183,7 @@ static void read_page() {
 		page += j * mul;
 	}
 
-	printf("\r\nReading page %d contents...", page);
+	printf("\r\nReading page %d contents... ", page);
 	if (rom->read(buffer, image_size, page * image_size)) {
 		printf("\r\nSuccessfully read %d bytes.\r\n", image_size);
 		for (int i = 0; i < image_size; i++) {
@@ -331,12 +336,14 @@ static void settings_menu() {
 // Filesystem
 
 static void filesystem_delete() {
-	if (storage_items && storage_items[0].key) delete storage_items;
-	if (!(storage_items = get_dir_items())) {
+	uint i, j;
+	if (!get_dir_items(storage_items, MAXFILES)) {
 		printf("No files available in local flash storage.\r\n");
-	} else if (command = command_prompt(storage_items, "Select the file you would like to delete", true)) {
-		printf("Deleting \"%s\"...\r\n", command->name);
-		if (delete_file(command->name)) {
+	} else if ((i = option_prompt(storage_items, "Select the file you would like to delete", true)) >= 0) {
+		// Change space to null terminator if found in appended size
+		for (j = 0; j < LFS_NAME_MAX; j++) if (storage_items[i][j] == ' ') storage_items[i][j] = 0;
+		printf("Deleting \"%s\"...\r\n", storage_items[i]);
+		if (delete_file(storage_items[i])) {
 			printf("Successfully deleted file.\r\n");
 		} else {
 			printf("Unable to delete file.\r\n");
@@ -345,17 +352,30 @@ static void filesystem_delete() {
 	printf("\r\n");
 }
 
+static void filesystem_reformat() {
+	printf("Reformatting flash storage...\r\n");
+	if (!reformat_filesystem()) {
+		printf("Unable to perform operation.\r\n");
+	} else {
+		printf("Operation successfully completed!\r\n");
+	}
+	printf("\r\n");
+};
+
 static Command filesystem_commands[] = {
 	{ 'd', "Delete file", filesystem_delete },
-	// TODO: Rename, Reformat
+	{ 'f', "Reformat file system", filesystem_reformat },
+	// TODO: Rename
 	{ 0 }
 };
 
 static void filesystem_menu() {
 	while (true) {
-		printf("Available Files:\r\n");
-		print_dir_items();
-		printf("\r\n");
+		if (dir_count()) {
+			printf("Available Files:\r\n");
+			print_dir_items();
+			printf("\r\n");
+		}
 		command = command_prompt(filesystem_commands, "Select the file operation you would like to perform", true);
 		if (!command) break;
 		if (command->action) command->action();

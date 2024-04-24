@@ -1,22 +1,100 @@
 #include "storage.hpp"
 
-#include <stddef.h>
-#include <stdint.h>
-#include <pfs.h>
-#include "lfs.h"
-#include <cstdio>
-#define _DEFAULT_SOURCE // Enables file type constants
-#include <dirent.h>
-#include "pico/stdlib.h"
+#include <lfs.h>
+#include <hardware/flash.h>
+#include <hardware/sync.h>
 
-static struct pfs_pfs *pfs;
-static struct lfs_config cfg;
+// littlefs configuration
+
+static lfs_t lfs;
+static lfs_file_t file;
+static lfs_info info;
+static lfs_dir_t dir;
+
+static int lfs_pico_read(const struct lfs_config *cfg, lfs_block_t block, lfs_off_t off, void *buffer, lfs_size_t size) {
+    uint8_t *ffs_mem  = (uint8_t *) cfg->context;
+
+	// check if read is valid
+	LFS_ASSERT (off  % cfg->read_size == 0);
+	LFS_ASSERT (size % cfg->read_size == 0);
+	LFS_ASSERT (block < cfg->block_count);
+
+	// read data
+	memcpy (buffer, &ffs_mem[block*cfg->block_size + off], size);
+
+	return 0;
+};
+
+static int lfs_pico_prog(const struct lfs_config *cfg, lfs_block_t block, lfs_off_t off, const void *buffer, lfs_size_t size) {
+    uint8_t *ffs_mem  = (uint8_t *) cfg->context;
+
+	// check if write is valid
+	LFS_ASSERT (off  % cfg->prog_size == 0);
+	LFS_ASSERT (size % cfg->prog_size == 0);
+	LFS_ASSERT (block < cfg->block_count);
+
+	// program data
+	uint32_t ints = save_and_disable_interrupts ();
+	flash_range_program (&ffs_mem[block*cfg->block_size + off]
+		-(uint8_t *)XIP_BASE, (const uint8_t *)buffer, size);
+	restore_interrupts (ints);
+
+	return 0;
+};
+
+static int lfs_pico_erase(const struct lfs_config *cfg, lfs_block_t block) {
+    uint8_t *ffs_mem  = (uint8_t *) cfg->context;
+
+	// check if erase is valid
+	LFS_ASSERT (block < cfg->block_count);
+
+	uint32_t ints = save_and_disable_interrupts ();
+	flash_range_erase (&ffs_mem[block*cfg->block_size]
+		-(uint8_t *)XIP_BASE, cfg->block_size);
+	restore_interrupts (ints);
+
+	return 0;
+};
+
+static int lfs_pico_sync(const struct lfs_config *cfg) {
+	// sync does nothing because we aren't backed by anything real
+	return 0;
+};
+
+struct lfs_config cfg;
 
 void init_filesystem() {
-    ffs_pico_createcfg(&cfg, ROOT_OFFSET, ROOT_SIZE);
-    pfs = pfs_ffs_create(&cfg);
-    pfs_mount(pfs, "/");
+    // Setup configuration
+    memset(&cfg, 0, sizeof(struct lfs_config));
+    cfg.context         = (void *) (XIP_BASE + ROOT_OFFSET);
+    cfg.read            = lfs_pico_read;
+    cfg.prog            = lfs_pico_prog;
+    cfg.erase           = lfs_pico_erase;
+    cfg.sync            = lfs_pico_sync;
+    cfg.read_size       = 1;
+    cfg.prog_size       = FLASH_PAGE_SIZE;
+    cfg.block_size      = FLASH_SECTOR_SIZE;
+    cfg.block_count     = ROOT_SIZE / FLASH_SECTOR_SIZE;
+    cfg.cache_size      = FLASH_PAGE_SIZE; // 256?
+    cfg.lookahead_size  = 32;
+    cfg.block_cycles    = 256;
+
+    if (lfs_mount(&lfs, &cfg)) {
+        // Format if first boot
+        lfs_format(&lfs, &cfg);
+        lfs_mount(&lfs, &cfg);
+    }
 };
+
+bool reformat_filesystem() {
+    lfs_unmount(&lfs);
+    lfs_format(&lfs, &cfg);
+    lfs_mount(&lfs, &cfg);
+    // TODO: Error handling?
+    return true;
+};
+
+// File helpers
 
 static char invalid_chars[] = {
     ' ', '^', '<', '>',
@@ -25,14 +103,10 @@ static char invalid_chars[] = {
     '?', '"', '*'
 };
 
-bool file_exists(const char *fname) {
-    FILE *file;
-    if ((file = fopen(fname, "rb")) != NULL) {
-        fclose(file);
-        return true;
-    }
-    return false;
-}
+bool file_exists(const char * path) {
+    int err = lfs_stat(&lfs, path, &info);
+    return err >= 0;
+};
 
 bool valid_filename(const char * fn, bool output) {
     if (!fn[0] || fn[0] == '.') return false;
@@ -50,92 +124,96 @@ bool valid_filename(const char * fn) {
     return valid_filename(fn, true);
 };
 
-bool valid_file(const struct dirent * ep) {
-    return valid_filename(ep->d_name, false);
-};
+// File operations
 
 bool write_file(const char * path, const uint8_t * buffer, size_t size) {
-    FILE * fp = fopen(path, "wb");
-    if (fp == NULL) return false;
-    fwrite(buffer, size, 1, fp);
-    fclose(fp);
-    return true;
+    if (file_exists(path)) delete_file(path);
+    lfs_file_open(&lfs, &file, path, LFS_O_WRONLY | LFS_O_CREAT | LFS_O_EXCL);
+    lfs_ssize_t write_size = lfs_file_write(&lfs, &file, buffer, size);
+    lfs_file_close(&lfs, &file);
+    return write_size > 0;
 };
 
-size_t read_file(const char * path, uint8_t * buffer, size_t bufferSize) {
-    FILE * fp = fopen(path, "rb");
-    size_t size = 0;
-    uint8_t c;
-    while ((c = (uint8_t)getc(fp)) != EOF && size < bufferSize) {
-        buffer[size++] = c;
-    }
-    fclose(fp);
-    return size;
+size_t read_file(const char * path, uint8_t * buffer, size_t buffer_size) {
+    lfs_file_open(&lfs, &file, path, LFS_O_RDONLY);
+    lfs_ssize_t size = lfs_file_read(&lfs, &file, buffer, buffer_size);
+    lfs_file_close(&lfs, &file);
+    if (size < 0) return 0;
+    return (size_t)size;
 };
 
 bool delete_file(const char * path) {
-    if (!file_exists(path)) return false;
-    return remove(path) == 0;
+    return lfs_remove(&lfs, path) >= 0;
+};
+
+// Directory operations
+
+bool valid_dir_item(bool include_dir) {
+    if (!include_dir && info.type == LFS_TYPE_DIR) return false;
+    if (info.type == LFS_TYPE_REG && !valid_filename(info.name, false)) return false;
+    return true;
 };
 
 size_t dir_count(const char * path, bool include_dir) {
     size_t count = 0;
-    DIR * dp;
-    struct dirent * ep;
-    dp = opendir(path);
-    while ((ep = readdir(dp)) != NULL) {
-        if (!include_dir && !valid_file(ep)) continue;
+    lfs_dir_open(&lfs, &dir, path);
+    while (lfs_dir_read(&lfs, &dir, &info)) {
+        if (!valid_dir_item(include_dir)) continue;
         count++;
     }
-    closedir(dp);
+    lfs_dir_close(&lfs, &dir);
     return count;
 };
 size_t dir_count(const char * path) {
     return dir_count(path, false);
 };
-
 size_t dir_count() {
     return dir_count("/");
 };
 
-Command * get_dir_items(const char * path, bool include_dir) {
-    size_t count = dir_count(path, include_dir);
-    if (!count) return NULL;
-    Command * items = new Command[count+1];
-
-    DIR * dp;
-    struct dirent * ep;
-    dp = opendir(path);
-    size_t i = 0;
-    while (i < count && (ep = readdir(dp)) != NULL) {
-        if (!include_dir && !valid_file(ep)) continue;
-        items[i] = {
-            (char)(i < 10 ? 0x30+i : 0x61+(i-10)), // BUG: max is 35 (0-9, a-z) before wonkiness
-            (const char *)ep->d_name
-        };
+size_t get_dir_items(char items[][LFS_NAME_MAX+1], size_t size, const char * path, bool include_dir) {
+    lfs_dir_open(&lfs, &dir, path);
+    size_t i = 0, j;
+    while (i < size-1 && lfs_dir_read(&lfs, &dir, &info)) {
+        if (!valid_dir_item(include_dir)) continue;
+        // NOTE: Could potentially use strcpy here
+        for (j = 0; j < LFS_NAME_MAX; j++) {
+            items[i][j] = info.name[j];
+            if (!info.name[j]) {
+                // Add size to file name
+                // NOTE: Could potentially use sprintf here
+                if (j < LFS_NAME_MAX - 6) {
+                    items[i][j++] = ' ';
+                    items[i][j++] = '(';
+                    if (info.size/1024>10) items[i][j++] = (char)(0x30 + info.size/1024/10);
+                    items[i][j++] = (char)(0x30 + info.size/1024%10);
+                    items[i][j++] = 'K';
+                    items[i][j++] = ')';
+                    items[i][j] = 0;
+                }
+                break;
+            }
+        }
         i++;
     }
-    closedir(dp);
-    items[i] = { 0 };
-
-    return items;
+    lfs_dir_close(&lfs, &dir);
+    items[i][0] = 0;
+    return i;
 };
-Command * get_dir_items(const char * path) {
-    return get_dir_items(path, false);
+size_t get_dir_items(char items[][LFS_NAME_MAX+1], size_t size, const char * path) {
+    return get_dir_items(items, size, path, false);
 };
-Command * get_dir_items() {
-    return get_dir_items("/", false);
+size_t get_dir_items(char items[][LFS_NAME_MAX+1], size_t size) {
+    return get_dir_items(items, size, "/", false);
 };
 
 void print_dir_items(const char * path, bool include_dir) {
-    DIR * dp;
-    struct dirent * ep;
-    dp = opendir(path);
-    while ((ep = readdir(dp)) != NULL) {
-        if (!include_dir && !valid_file(ep)) continue;
-        printf("\t%s\r\n", ep->d_name);
+    lfs_dir_open(&lfs, &dir, path);
+    while (lfs_dir_read(&lfs, &dir, &info)) {
+        if (!valid_dir_item(include_dir)) continue;
+        printf("\t%s (%dK)\r\n", info.name, info.size/1024);
     }
-    closedir(dp);
+    lfs_dir_close(&lfs, &dir);
 };
 void print_dir_items(const char * path) {
     print_dir_items(path, false);
