@@ -12,8 +12,8 @@ set(CMAKE_CXX_STANDARD 17)
 pico_sdk_init()
 
 add_executable(${NAME}
-	${CMAKE_CURRENT_LIST_DIR}/src/configs.cpp
-	${CMAKE_CURRENT_LIST_DIR}/src/eeprom.cpp
+	${CMAKE_CURRENT_LIST_DIR}/src/config.cpp
+	${CMAKE_CURRENT_LIST_DIR}/src/rom.cpp
 	${CMAKE_CURRENT_LIST_DIR}/src/picoprom.cpp
 )
 

@@ -2,19 +2,21 @@
 
 #include <stdio.h>
 #include <tusb.h>
+#include <typeinfo>
 
 #include "pico/binary_info.h"
 #include "pico/stdlib.h"
 
 #include "xmodem.hpp"
 
-#include "configs.hpp"
-#include "eeprom.hpp"
+#include "config.hpp"
+#include "rom.hpp"
 #include "command.hpp"
 
 static uint8_t buffer[MAXSIZE];
 static size_t image_size;
 static XMODEM xmodem;
+static ROM * rom = NULL;
 static Command * command;
 
 // Image Actions
@@ -70,8 +72,7 @@ static bool send_image() {
 static bool verify_buffer() {
 	if (!image_size) return false;
 	printf("Verifying ROM contents... ");
-	sleep_ms(gConfig.pageDelayMs);
-	size_t error = eeprom_verifyImage(buffer, image_size, 0);
+	size_t error = rom->verify_image(buffer, image_size);
 	printf("\r\n");
 	if (error > 0) {
 		printf("ROM verification failed: %d incorrect bytes out of %d\r\n", error, image_size);
@@ -89,29 +90,37 @@ static void write_image() {
 	printf("Transfer complete - received %d bytes\r\n", image_size);
 	printf("\r\n");
 
-	if (image_size > gConfig.size) {
-		printf("Truncating image to %d bytes\r\n", gConfig.size);
+	if (image_size > rom->get_size()) {
+		printf("Truncating image to %d bytes\r\n", rom->get_size());
 		printf("\r\n");
-		image_size = gConfig.size;
+		image_size = rom->get_size();
 	}
 
-	printf("Writing to EEPROM... ");
-	eeprom_writeImage(buffer, image_size);
+	printf("Writing to device... ");
+	rom->write_image(buffer, image_size);
 	printf("\r\n");
 
 	verify_buffer();
 }
 
 static void read_image() {
-	printf("Reading EEPROM contents...");
-	image_size = eeprom_readImage(buffer, MAXSIZE, 0);
+	printf("Reading device contents...");
+	if (rom->read(buffer)) {
+		image_size = rom->get_size();
+	} else {
+		printf("\r\nFailed to read image.");
+	}
 	printf("\r\n\r\n");
 	send_image();
 }
 
 static void read_page() {
 	int i, j, k, mul, page = 0, len = 0;
-	printf("Enter the number of the page you would like to view then hit enter: ");
+
+	image_size = rom->get_page_size();
+	if (image_size <= 0) image_size = 64;
+
+	printf("Provide the number of the page (%d bytes) you would like to view then hit enter (0-%d): ", image_size, rom->get_size() / image_size - 1);
 
 	// Get number value
 	do {
@@ -131,19 +140,15 @@ static void read_page() {
 		page += j * mul;
 	}
 
-	int pageSize = gConfig.pageSize;
-	if (pageSize <= 0) pageSize = 64;
-
-	printf("\r\nReading EEPROM page %d contents...", page);
-	image_size = eeprom_readImage(buffer, pageSize, page * pageSize);
-	if (image_size) {
+	printf("\r\nReading page %d contents...", page);
+	if (rom->read(buffer, image_size, page * image_size)) {
 		printf("\r\nSuccessfully read %d bytes.\r\n", image_size);
 		for (int i = 0; i < image_size; i++) {
 			if (i % 16 == 0) printf("\r\n");
 			printf("%02X ", buffer[i]);
 		}
 	} else {
-		printf("\r\nUnable to read page.");
+		printf("\r\nFailed to read page.");
 	}
 	printf("\r\n\r\n");
 }
@@ -156,47 +161,69 @@ static void verify_image() {
 // Tools
 
 static void erase() {
-	printf("Not yet implemented.\r\n");
+	printf("Not yet implemented.\r\n\r\n");
 }
 
 static void write_zeroes() {
-	printf("\r\n");
-	printf("Writing zeroes to EEPROM... ");
-	eeprom_writeValue(0x00);
+	printf("Writing zeroes to device... ");
+	if (!rom->write_value(0x00)) {
+		printf("\r\nFailed to write to device.\r\n\r\n");
+		return;
+	}
 	printf("\r\n");
 
-	// TODO: Implement verification
-
+	printf("Verifying ROM contents... ");
+	size_t error = rom->verify_value(0x00);
+	printf("\r\n");
+	if (error > 0) {
+		printf("ROM verification failed: %d incorrect bytes out of %d\r\n", error, rom->get_size());
+	} else {
+		printf("ROM verification succeeded\r\n");
+	}
 	printf("\r\n");
 }
 
 static void write_ones() {
-	printf("\r\n");
-	printf("Writing zeroes to EEPROM... ");
-	eeprom_writeValue(0xff);
+	printf("Writing zeroes to device... ");
+	if (!rom->write_value(0xFF)) {
+		printf("\r\nFailed to write to device.\r\n\r\n");
+		return;
+	}
 	printf("\r\n");
 
-	// TODO: Implement verification
-
+	printf("Verifying ROM contents... ");
+	size_t error = rom->verify_value(0xFF);
+	printf("\r\n");
+	if (error > 0) {
+		printf("ROM verification failed: %d incorrect bytes out of %d\r\n", error, rom->get_size());
+	} else {
+		printf("ROM verification succeeded\r\n");
+	}
 	printf("\r\n");
 }
 
 static void write_random() {
-	printf("\r\n");
-	printf("Writing random values to EEPROM... ");
-	eeprom_writeRandom();
-	printf("\r\n");
-	printf("\r\n");
+	printf("Writing random values to device... ");
+	if (!rom->write_random()) printf("\r\nFailed to write to device.");
+	printf("\r\n\r\n");
 }
 
 static void write_index() {
-	printf("\r\n");
-	printf("Writing address index values to EEPROM... ");
-	eeprom_writeIndex();
+	printf("Writing address index values to device... ");
+	if (!rom->write_index()) {
+		printf("\r\nFailed to write to device.\r\n\r\n");
+		return;
+	}
 	printf("\r\n");
 
-	// TODO: Implement verification
-
+	printf("Verifying ROM contents... ");
+	size_t error = rom->verify_index();
+	printf("\r\n");
+	if (error > 0) {
+		printf("ROM verification failed: %d incorrect bytes out of %d\r\n", error, rom->get_size());
+	} else {
+		printf("ROM verification succeeded\r\n");
+	}
 	printf("\r\n");
 }
 
@@ -236,15 +263,21 @@ static void change_log_level() {
 }
 
 static Command settings_commands[] = {
-	{ 'd', "Change device", change_device },
-	//{ 'c', "Change category", change_device_category },
+	{ 'd', "Change device", next_config },
+	{ 'c', "Change category", next_config_category },
 	{ 'l', "Change log level", change_log_level },
 	{ 0 }
 };
 
 static void show_settings() {
-	print_device();
+	print_config();
+	printf("\r\n");
 	xmodem.print_config();
+}
+
+static void init_rom() {
+	if (rom) delete rom;
+	rom = new ROM(get_config());
 }
 
 static void settings_menu() {
@@ -253,6 +286,7 @@ static void settings_menu() {
 		command = command_prompt(settings_commands, "Select the setting you would like to change", true);
 		if (!command) break;
 		if (command->action) command->action();
+		if (command->key != 'l') init_rom();
 	}
 }
 
@@ -269,30 +303,22 @@ static Command menu_commands[] = {
 };
 
 int main() {
-	bi_decl(bi_program_description("PicoPROM - EEPROM programming tool"));
+	bi_decl(bi_program_description("PicoPROM - ROM programming tool"));
 
-	bool eepromOk = eeprom_init();
-
-	init_device();
+	init_rom();
 
 	while (true) {
 
 		while (!tud_cdc_connected()) sleep_ms(100);
-		printf("\r\nUSB Serial connected\r\n");
-
-		if (!eepromOk) {
-			printf("ERROR: no pin was mapped to Write Enable (ID 15)\r\n");
-			return -1;
-		}
+		printf("\r\n\r\nUSB Serial connected\r\n\r\n");
 
 		// Print banner
-		printf("\r\n\r\n");
-		printf("PicoPROM v0.23   Raspberry Pi Pico DIP-EEPROM programmer\r\n");
+		printf("PicoPROM v0.23   Raspberry Pi Pico ROM programmer\r\n");
 		printf("                 by George Foot, February 2021 & Cooper Dalrymple, April 2024\r\n");
 		printf("                 https://github.com/dcooperdalrymple/picoprom\r\n");
 
 		// Print current settings
-		printf("\r\n\r\n");
+		printf("\r\n");
 		show_settings();
 
 		while (true) {
