@@ -117,6 +117,7 @@ static rom_config_t configs_atari[] = {
         true,
         1
     },
+    // TODO: Support bank-switching
     {
         NULL
     }
