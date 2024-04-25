@@ -333,6 +333,25 @@ static void settings_menu() {
 
 // Filesystem
 
+static void filesystem_transfer() {
+	if ((selected_file = get_file_selection("Select the file you would like to transfer")) != NULL) {
+		printf("Reading \"%s\"...\r\n", selected_file);
+		if (!(image_size = read_file(selected_file, buffer, MAXSIZE))) {
+			printf("Failed to read data from \"%s\".\r\n", selected_file);
+		} else {
+			printf("Ready to transfer \"%s\". Begin XMODEM transfer...\r\n", selected_file);
+			if (xmodem.send(buffer, image_size)) {
+				sleep_ms(TRANSFER_DELAY);
+				printf("\r\nSend transfer complete - delivered %d bytes\r\n", image_size);
+			} else {
+				sleep_ms(TRANSFER_DELAY);
+				printf("\r\nXMODEM send transfer failed\r\n");
+			}
+		}
+	}
+	printf("\r\n");
+}
+
 static void filesystem_delete() {
 	if ((selected_file = get_file_selection("Select the file you would like to delete")) != NULL) {
 		printf("Deleting \"%s\"...\r\n", selected_file);
@@ -356,6 +375,7 @@ static void filesystem_reformat() {
 };
 
 static Command filesystem_commands[] = {
+	{ 't', "Transfer file", filesystem_transfer },
 	{ 'd', "Delete file", filesystem_delete },
 	{ 'f', "Reformat file system", filesystem_reformat },
 	// TODO: Rename
