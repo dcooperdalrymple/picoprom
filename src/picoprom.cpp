@@ -396,8 +396,8 @@ int main() {
 		printf("\r\n\r\nUSB Serial connected\r\n\r\n");
 
 		// Print banner
-		printf("PicoPROM v0.23   Raspberry Pi Pico ROM programmer\r\n");
-		printf("                 by George Foot, February 2021 & Cooper Dalrymple, April 2024\r\n");
+		printf("PicoPROM v0.24   Raspberry Pi Pico ROM programmer\r\n");
+		printf("                 by Cooper Dalrymple, April 2024 & George Foot, February 2021\r\n");
 		printf("                 https://github.com/dcooperdalrymple/picoprom\r\n");
 
 		// Print current settings
