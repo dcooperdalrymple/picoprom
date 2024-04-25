@@ -137,7 +137,10 @@ static void write_image() {
 	printf("\r\n");
 
 	printf("Writing to device... ");
-	rom->write_image(buffer, image_size);
+	if (!rom->write_image(buffer, image_size)) {
+		printf("\r\nFailed to write to device.\r\n\r\n");
+		return;
+	}
 	printf("\r\n");
 
 	verify_buffer();
