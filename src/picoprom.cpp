@@ -42,8 +42,10 @@ static bool receive_image() {
 			// TODO: quit during timeout?
 			printf("Ready to receive image. Begin XMODEM transfer... ");
 			if (image_size = xmodem.receive(buffer, MAXSIZE)) {
+				sleep_ms(TRANSFER_DELAY);
 				printf("\r\nTransfer complete!\r\n");
 			} else {
+				sleep_ms(TRANSFER_DELAY);
 				printf("\r\nXMODEM transfer failed\r\n");
 			}
 			break;
@@ -70,8 +72,10 @@ static bool send_image() {
 			printf("Ready to send ROM image. Begin XMODEM transfer... ");
 			if (xmodem.send(buffer, image_size)) {
 				result = true;
+				sleep_ms(TRANSFER_DELAY);
 				printf("\r\nSend transfer complete - delivered %d bytes\r\n", image_size);
 			} else {
+				sleep_ms(TRANSFER_DELAY);
 				printf("\r\nXMODEM send transfer failed\r\n");
 			}
 			break;
