@@ -22,6 +22,7 @@ static size_t image_size;
 static XMODEM xmodem;
 static ROM * rom = NULL;
 static Command * command;
+static char * selected_file;
 
 // Image Actions
 
@@ -30,8 +31,6 @@ static Command transfer_options[] = {
 	{ 's', "Flash Storage" },
 	{ 0 }
 };
-
-static char storage_items[MAXFILES][LFS_NAME_MAX+1];
 
 static bool receive_image() {
 	command = command_prompt(transfer_options, "Select how you would like to transfer the image", true);
@@ -49,15 +48,10 @@ static bool receive_image() {
 			}
 			break;
 		case 's':
-			uint i, j;
-			if (!get_dir_items(storage_items, MAXFILES)) {
-				printf("No files available in local flash storage.\r\n");
-			} else if ((i = option_prompt(storage_items, "Select the file you would like to use", true)) >= 0) {
-				// Change space to null terminator if found in appended size
-				for (j = 0; j < LFS_NAME_MAX; j++) if (storage_items[i][j] == ' ') storage_items[i][j] = 0;
-				printf("Reading \"%s\"...\r\n", storage_items[i]);
-				if (!(image_size = read_file(storage_items[i], buffer, MAXSIZE))) {
-					printf("Failed to read data from \"%s\".\r\n", storage_items[i]);
+			if ((selected_file = get_file_selection()) != NULL) {
+				printf("Reading \"%s\"...\r\n", selected_file);
+				if (!(image_size = read_file(selected_file, buffer, MAXSIZE))) {
+					printf("Failed to read data from \"%s\".\r\n", selected_file);
 				}
 			}
 			break;
@@ -336,14 +330,9 @@ static void settings_menu() {
 // Filesystem
 
 static void filesystem_delete() {
-	uint i, j;
-	if (!get_dir_items(storage_items, MAXFILES)) {
-		printf("No files available in local flash storage.\r\n");
-	} else if ((i = option_prompt(storage_items, "Select the file you would like to delete", true)) >= 0) {
-		// Change space to null terminator if found in appended size
-		for (j = 0; j < LFS_NAME_MAX; j++) if (storage_items[i][j] == ' ') storage_items[i][j] = 0;
-		printf("Deleting \"%s\"...\r\n", storage_items[i]);
-		if (delete_file(storage_items[i])) {
+	if ((selected_file = get_file_selection("Select the file you would like to delete")) != NULL) {
+		printf("Deleting \"%s\"...\r\n", selected_file);
+		if (delete_file(selected_file)) {
 			printf("Successfully deleted file.\r\n");
 		} else {
 			printf("Unable to delete file.\r\n");
