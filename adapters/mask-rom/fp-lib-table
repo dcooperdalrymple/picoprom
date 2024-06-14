@@ -1,0 +1,4 @@
+(fp_lib_table
+  (version 7)
+  (lib (name "picoprom-mask-rom")(type "KiCad")(uri "${KIPRJMOD}/picoprom-mask-rom.pretty")(options "")(descr ""))
+)

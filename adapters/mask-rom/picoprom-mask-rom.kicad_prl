@@ -1,6 +1,6 @@
 {
   "board": {
-    "active_layer": 40,
+    "active_layer": 37,
     "active_layer_preset": "",
     "auto_track_width": true,
     "hidden_netclasses": [],
@@ -64,7 +64,7 @@
       39,
       40
     ],
-    "visible_layers": "fffffdf_ffffffff",
+    "visible_layers": "ffdffff_ffffffff",
     "zone_display_mode": 0
   },
   "git": {
@@ -74,7 +74,7 @@
     "ssh_key": ""
   },
   "meta": {
-    "filename": "picoprom-atari2600.kicad_prl",
+    "filename": "picoprom-mask-rom.kicad_prl",
     "version": 3
   },
   "project": {

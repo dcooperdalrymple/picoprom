@@ -9,6 +9,7 @@
 #define ROOT_OFFSET 0x100000
 
 bool file_exists(const char * path);
+size_t get_file_size(const char * path);
 bool valid_filename(const char * fn, bool output);
 bool valid_filename(const char * fn);
 
@@ -30,3 +31,12 @@ size_t get_dir_items(char items[][LFS_NAME_MAX+1], size_t size);
 void print_dir_items(const char * path, bool include_dir);
 void print_dir_items(const char * path);
 void print_dir_items();
+
+char * get_file_selection(const char * prompt, const char * path, bool include_dir, bool output);
+char * get_file_selection(const char * prompt, const char * path, bool include_dir);
+char * get_file_selection(const char * prompt, const char * path);
+char * get_file_selection(const char * prompt);
+char * get_file_selection();
+
+uint get_filename(char * buffer, bool overwrite);
+uint get_filename(char * buffer);

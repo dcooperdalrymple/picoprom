@@ -21,8 +21,11 @@ typedef struct {
     bool writeProtect;
     bool writeProtectDisable;
 
+    // GPIO
+    size_t addressMask;
+
     void print() {
-        printf("ROM: %s\r\n", name);
+        printf("Device: %s\r\n", name);
         printf("\tCapacity: %dK bytes\r\n", size / 1024);
         printf("\tRead-only: %s\r\n", readonly ? "yes" : "no");
 

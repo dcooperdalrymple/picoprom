@@ -102,6 +102,37 @@ static rom_config_t configs_eeprom[] = {
     }
 };
 
+static rom_config_t configs_mask_rom[] = {
+    {
+        "2364",
+        8192,
+        true,
+        false,
+        1,
+        0,
+        0,
+        0,
+        false,
+        false
+    },
+    {
+        "2332",
+        4096,
+        true,
+        false,
+        1,
+        0,
+        0,
+        0,
+        false,
+        false,
+        0x1000 // A12 = CE2
+    },
+    {
+        NULL
+    }
+};
+
 static rom_config_t configs_atari[] = {
     {
         "2K Cartridge",
@@ -117,6 +148,7 @@ static rom_config_t configs_atari[] = {
         true,
         1
     },
+    // TODO: Support bank-switching
     {
         NULL
     }
@@ -126,6 +158,10 @@ static config_category_t configs[] = {
     {
         "EEPROM",
         &configs_eeprom[0]
+    },
+    {
+        "Mask ROM",
+        &configs_mask_rom[0]
     },
     {
         "Atari 2600/VCS",

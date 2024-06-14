@@ -22,6 +22,7 @@ static size_t image_size;
 static XMODEM xmodem;
 static ROM * rom = NULL;
 static Command * command;
+static char * selected_file;
 
 // Image Actions
 
@@ -30,8 +31,6 @@ static Command transfer_options[] = {
 	{ 's', "Flash Storage" },
 	{ 0 }
 };
-
-static char storage_items[MAXFILES][LFS_NAME_MAX+1];
 
 static bool receive_image() {
 	command = command_prompt(transfer_options, "Select how you would like to transfer the image", true);
@@ -43,21 +42,18 @@ static bool receive_image() {
 			// TODO: quit during timeout?
 			printf("Ready to receive image. Begin XMODEM transfer... ");
 			if (image_size = xmodem.receive(buffer, MAXSIZE)) {
+				sleep_ms(TRANSFER_DELAY);
 				printf("\r\nTransfer complete!\r\n");
 			} else {
+				sleep_ms(TRANSFER_DELAY);
 				printf("\r\nXMODEM transfer failed\r\n");
 			}
 			break;
 		case 's':
-			uint i, j;
-			if (!get_dir_items(storage_items, MAXFILES)) {
-				printf("No files available in local flash storage.\r\n");
-			} else if ((i = option_prompt(storage_items, "Select the file you would like to use", true)) >= 0) {
-				// Change space to null terminator if found in appended size
-				for (j = 0; j < LFS_NAME_MAX; j++) if (storage_items[i][j] == ' ') storage_items[i][j] = 0;
-				printf("Reading \"%s\"...\r\n", storage_items[i]);
-				if (!(image_size = read_file(storage_items[i], buffer, MAXSIZE))) {
-					printf("Failed to read data from \"%s\".\r\n", storage_items[i]);
+			if ((selected_file = get_file_selection()) != NULL) {
+				printf("Reading \"%s\"...\r\n", selected_file);
+				if (!(image_size = read_file(selected_file, buffer, MAXSIZE))) {
+					printf("Failed to read data from \"%s\".\r\n", selected_file);
 				}
 			}
 			break;
@@ -76,30 +72,15 @@ static bool send_image() {
 			printf("Ready to send ROM image. Begin XMODEM transfer... ");
 			if (xmodem.send(buffer, image_size)) {
 				result = true;
+				sleep_ms(TRANSFER_DELAY);
 				printf("\r\nSend transfer complete - delivered %d bytes\r\n", image_size);
 			} else {
+				sleep_ms(TRANSFER_DELAY);
 				printf("\r\nXMODEM send transfer failed\r\n");
 			}
 			break;
 		case 's':
-			uint i, j, len = 0;
-			do {
-				printf("Enter a valid filename (%d characters max, leave empty to quit): ", LFS_NAME_MAX);
-				do {
-					input_buffer[len] = getchar();
-					if (input_buffer[len] == 13) break; // Carriage return
-					putchar(input_buffer[len]);
-				} while (len++ < LFS_NAME_MAX);
-				printf("\r\n");
-				if (len == 0) break;
-				input_buffer[len] = 0;
-				if (!valid_filename(input_buffer)) len = 0;
-				if (file_exists(input_buffer)) {
-					printf("File already exists.\r\n");
-					len = 0;
-				}
-			} while (!len);
-			if (len) {
+			if (get_filename(input_buffer)) {
 				printf("\r\nWriting data to \"%s\"...\r\n", input_buffer);
 				if (write_file(input_buffer, buffer, image_size)) {
 					printf("Successfully written data to file.\r\n", input_buffer);
@@ -139,7 +120,10 @@ static void write_image() {
 	printf("\r\n");
 
 	printf("Writing to device... ");
-	rom->write_image(buffer, image_size);
+	if (!rom->write_image(buffer, image_size)) {
+		printf("\r\nFailed to write to device.\r\n\r\n");
+		return;
+	}
 	printf("\r\n");
 
 	verify_buffer();
@@ -335,15 +319,55 @@ static void settings_menu() {
 
 // Filesystem
 
+static void filesystem_transfer() {
+	if ((selected_file = get_file_selection("Select the file you would like to transfer")) != NULL) {
+		printf("Reading \"%s\"...\r\n", selected_file);
+		if (!(image_size = read_file(selected_file, buffer, MAXSIZE))) {
+			printf("Failed to read data from \"%s\".\r\n", selected_file);
+		} else {
+			printf("Ready to transfer \"%s\". Begin XMODEM transfer...\r\n", selected_file);
+			if (xmodem.send(buffer, image_size)) {
+				sleep_ms(TRANSFER_DELAY);
+				printf("\r\nSend transfer complete - delivered %d bytes\r\n", image_size);
+			} else {
+				sleep_ms(TRANSFER_DELAY);
+				printf("\r\nXMODEM send transfer failed\r\n");
+			}
+		}
+	}
+	printf("\r\n");
+}
+
+static void filesystem_upload() {
+	// Get filename (and overwrite if exists)
+	if (!get_filename(input_buffer, true)) return;
+	if (file_exists(input_buffer)) delete_file(input_buffer);
+
+	// Receive XMODEM file
+	printf("\r\nReady to receive image. Begin XMODEM transfer... ");
+	if (image_size = xmodem.receive(buffer, MAXSIZE)) {
+		sleep_ms(TRANSFER_DELAY);
+		printf("\r\nTransfer complete!\r\n");
+	} else {
+		sleep_ms(TRANSFER_DELAY);
+		printf("\r\nXMODEM transfer failed\r\n");
+		return;
+	}
+
+	// Write file to flash
+	printf("\r\nWriting data to \"%s\"...\r\n", input_buffer);
+	if (write_file(input_buffer, buffer, image_size)) {
+		printf("Successfully written data to file.\r\n", input_buffer);
+	} else {
+		printf("Failed to write to flash storage.\r\n");
+	}
+	printf("\r\n");
+}
+
 static void filesystem_delete() {
-	uint i, j;
-	if (!get_dir_items(storage_items, MAXFILES)) {
-		printf("No files available in local flash storage.\r\n");
-	} else if ((i = option_prompt(storage_items, "Select the file you would like to delete", true)) >= 0) {
-		// Change space to null terminator if found in appended size
-		for (j = 0; j < LFS_NAME_MAX; j++) if (storage_items[i][j] == ' ') storage_items[i][j] = 0;
-		printf("Deleting \"%s\"...\r\n", storage_items[i]);
-		if (delete_file(storage_items[i])) {
+	if ((selected_file = get_file_selection("Select the file you would like to delete")) != NULL) {
+		printf("Deleting \"%s\"...\r\n", selected_file);
+		if (delete_file(selected_file)) {
 			printf("Successfully deleted file.\r\n");
 		} else {
 			printf("Unable to delete file.\r\n");
@@ -363,6 +387,8 @@ static void filesystem_reformat() {
 };
 
 static Command filesystem_commands[] = {
+	{ 't', "Transfer file", filesystem_transfer },
+	{ 'u', "Upload file", filesystem_upload },
 	{ 'd', "Delete file", filesystem_delete },
 	{ 'f', "Reformat file system", filesystem_reformat },
 	// TODO: Rename
@@ -407,8 +433,8 @@ int main() {
 		printf("\r\n\r\nUSB Serial connected\r\n\r\n");
 
 		// Print banner
-		printf("PicoPROM v0.23   Raspberry Pi Pico ROM programmer\r\n");
-		printf("                 by George Foot, February 2021 & Cooper Dalrymple, April 2024\r\n");
+		printf("PicoPROM v0.24   Raspberry Pi Pico ROM programmer\r\n");
+		printf("                 by Cooper Dalrymple, April 2024 & George Foot, February 2021\r\n");
 		printf("                 https://github.com/dcooperdalrymple/picoprom\r\n");
 
 		// Print current settings

@@ -4,12 +4,16 @@
 #include <hardware/flash.h>
 #include <hardware/sync.h>
 
+#include "picoprom.hpp"
+
 // littlefs configuration
 
 static lfs_t lfs;
 static lfs_file_t file;
 static lfs_info info;
 static lfs_dir_t dir;
+
+static char files[MAXFILES][LFS_NAME_MAX+1];
 
 static int lfs_pico_read(const struct lfs_config *cfg, lfs_block_t block, lfs_off_t off, void *buffer, lfs_size_t size) {
     uint8_t *ffs_mem  = (uint8_t *) cfg->context;
@@ -106,6 +110,12 @@ static char invalid_chars[] = {
 bool file_exists(const char * path) {
     int err = lfs_stat(&lfs, path, &info);
     return err >= 0;
+};
+
+size_t get_file_size(const char * path) {
+    int err = lfs_stat(&lfs, path, &info);
+    if (err < 0 || info.type != LFS_TYPE_REG) return 0;
+    return (size_t)info.size;
 };
 
 bool valid_filename(const char * fn, bool output) {
@@ -220,4 +230,52 @@ void print_dir_items(const char * path) {
 };
 void print_dir_items() {
     print_dir_items("/", false);
+};
+
+char * get_file_selection(const char * prompt, const char * path, bool include_dir, bool output) {
+    int i, j;
+    if (!get_dir_items(files, MAXFILES, path, include_dir)) {
+        if (output) printf("No files available in local flash storage.\r\n");
+        return NULL;
+    }
+    if ((i = option_prompt(files, "Select the desired file", true)) < 0) return NULL;
+    // Change space to null terminator if found in appended size
+    for (j = 0; j < LFS_NAME_MAX; j++) if (files[i][j] == ' ') files[i][j] = 0;
+    return (char *)files[i];
+};
+char * get_file_selection(const char * prompt, const char * path, bool include_dir) {
+    return get_file_selection(prompt, path, include_dir, true);
+};
+char * get_file_selection(const char * prompt, const char * path) {
+    return get_file_selection(prompt, path, false, true);
+};
+char * get_file_selection(const char * prompt) {
+    return get_file_selection(prompt, "/", false, true);
+};
+char * get_file_selection() {
+    return get_file_selection("Select the file you would like to use", "/", false);
+};
+
+uint get_filename(char * buffer, bool overwrite) {
+    uint i, j, len = 0;
+	do {
+		printf("Enter a valid filename (%d characters max, leave empty to quit): ", LFS_NAME_MAX);
+		do {
+			buffer[len] = getchar();
+			if (buffer[len] == 13) break; // Carriage return
+			putchar(buffer[len]);
+		} while (len++ < LFS_NAME_MAX);
+		printf("\r\n");
+		if (len == 0) break;
+		buffer[len] = 0;
+		if (!valid_filename(buffer)) len = 0;
+		if (!overwrite && file_exists(buffer)) {
+			printf("File already exists.\r\n");
+			len = 0;
+		}
+	} while (!len);
+    return len;
+};
+uint get_filename(char * buffer) {
+    return get_filename(buffer, false);
 };
