@@ -27,7 +27,7 @@ ROM::ROM(rom_config_t config) {
         gpio_init(ADDR_MAP[i]);
         gpio_set_dir(ADDR_MAP[i], true);
     }
-    this->set_address(0);
+    this->set_address(this->config.addressMask);
 
     for (uint8_t i = 0; i < sizeof(DATA_MAP) / sizeof(*DATA_MAP); i++) {
         gpio_init(DATA_MAP[i]);
@@ -232,6 +232,7 @@ void ROM::status(size_t address, bool output) {
 };
 
 void ROM::set_address(size_t address) {
+    address |= this->config.addressMask;
     for (uint8_t i = 0; i < sizeof(ADDR_MAP) / sizeof(*ADDR_MAP); i++) {
         gpio_put(ADDR_MAP[i], address & (1 << i));
     }
