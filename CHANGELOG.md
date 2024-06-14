@@ -2,7 +2,7 @@
 
 ## [0.24] 2024-06-14
 ### Added
-- File transfer action
+- File transfer & upload actions
 - Atari 2600 cartridge reader adapter 3d printed connector
 - Address mask in device configuration settings
 - Added 2364/2332 mask ROM device configurations
@@ -10,6 +10,7 @@
 
 ### Changed
 - Global file selection routines
+- Global file name prompt routine
 - Default to fetch Pico SDK from git
 
 ### Fixed
