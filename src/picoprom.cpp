@@ -338,6 +338,32 @@ static void filesystem_transfer() {
 	printf("\r\n");
 }
 
+static void filesystem_upload() {
+	// Get filename (and overwrite if exists)
+	if (!get_filename(input_buffer, true)) return;
+	if (file_exists(input_buffer)) delete_file(input_buffer);
+
+	// Receive XMODEM file
+	printf("\r\nReady to receive image. Begin XMODEM transfer... ");
+	if (image_size = xmodem.receive(buffer, MAXSIZE)) {
+		sleep_ms(TRANSFER_DELAY);
+		printf("\r\nTransfer complete!\r\n");
+	} else {
+		sleep_ms(TRANSFER_DELAY);
+		printf("\r\nXMODEM transfer failed\r\n");
+		return;
+	}
+
+	// Write file to flash
+	printf("\r\nWriting data to \"%s\"...\r\n", input_buffer);
+	if (write_file(input_buffer, buffer, image_size)) {
+		printf("Successfully written data to file.\r\n", input_buffer);
+	} else {
+		printf("Failed to write to flash storage.\r\n");
+	}
+	printf("\r\n");
+}
+
 static void filesystem_delete() {
 	if ((selected_file = get_file_selection("Select the file you would like to delete")) != NULL) {
 		printf("Deleting \"%s\"...\r\n", selected_file);
@@ -362,6 +388,7 @@ static void filesystem_reformat() {
 
 static Command filesystem_commands[] = {
 	{ 't', "Transfer file", filesystem_transfer },
+	{ 'u', "Upload file", filesystem_upload },
 	{ 'd', "Delete file", filesystem_delete },
 	{ 'f', "Reformat file system", filesystem_reformat },
 	// TODO: Rename
