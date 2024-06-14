@@ -37,3 +37,6 @@ char * get_file_selection(const char * prompt, const char * path, bool include_d
 char * get_file_selection(const char * prompt, const char * path);
 char * get_file_selection(const char * prompt);
 char * get_file_selection();
+
+uint get_filename(char * buffer, bool overwrite);
+uint get_filename(char * buffer);

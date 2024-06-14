@@ -80,24 +80,7 @@ static bool send_image() {
 			}
 			break;
 		case 's':
-			uint i, j, len = 0;
-			do {
-				printf("Enter a valid filename (%d characters max, leave empty to quit): ", LFS_NAME_MAX);
-				do {
-					input_buffer[len] = getchar();
-					if (input_buffer[len] == 13) break; // Carriage return
-					putchar(input_buffer[len]);
-				} while (len++ < LFS_NAME_MAX);
-				printf("\r\n");
-				if (len == 0) break;
-				input_buffer[len] = 0;
-				if (!valid_filename(input_buffer)) len = 0;
-				if (file_exists(input_buffer)) {
-					printf("File already exists.\r\n");
-					len = 0;
-				}
-			} while (!len);
-			if (len) {
+			if (get_filename(input_buffer)) {
 				printf("\r\nWriting data to \"%s\"...\r\n", input_buffer);
 				if (write_file(input_buffer, buffer, image_size)) {
 					printf("Successfully written data to file.\r\n", input_buffer);

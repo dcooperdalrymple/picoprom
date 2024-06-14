@@ -255,3 +255,27 @@ char * get_file_selection(const char * prompt) {
 char * get_file_selection() {
     return get_file_selection("Select the file you would like to use", "/", false);
 };
+
+uint get_filename(char * buffer, bool overwrite) {
+    uint i, j, len = 0;
+	do {
+		printf("Enter a valid filename (%d characters max, leave empty to quit): ", LFS_NAME_MAX);
+		do {
+			buffer[len] = getchar();
+			if (buffer[len] == 13) break; // Carriage return
+			putchar(buffer[len]);
+		} while (len++ < LFS_NAME_MAX);
+		printf("\r\n");
+		if (len == 0) break;
+		buffer[len] = 0;
+		if (!valid_filename(buffer)) len = 0;
+		if (!overwrite && file_exists(buffer)) {
+			printf("File already exists.\r\n");
+			len = 0;
+		}
+	} while (!len);
+    return len;
+};
+uint get_filename(char * buffer) {
+    return get_filename(buffer, false);
+};
